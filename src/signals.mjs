@@ -1,61 +1,62 @@
-const immutable = Symbol('immutable')
+export const immutable = Symbol('immutable')
+
 const signalHandler = {
-	get: (target, property, receiver) => {
-		if (typeof target[property]==='function') {
-			if (Array.isArray(target)) {
-				if (typeof property === 'symbol') {
-					return target[property] // iterators and stuff, don't mess with them
-				}
+    get: (target, property, receiver) => {
+        if (typeof target[property]==='function') {
+            if (Array.isArray(target)) {
+                if (typeof property === 'symbol') {
+                    return target[property] // iterators and stuff, don't mess with them
+                }
                 if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift']
-                	.indexOf(property)!==-1)
+                    .indexOf(property)!==-1)
                 {
                     if (target[immutable]) {
                         throw new Error('This signal is immutable', {cause: receiver})
                     }
                     return (...args) => {
-                    	let temp = target.slice()
+                        let temp = target.slice()
                         let result = target[property].apply(target, args)
                         if (temp.length!==target.length) {
-	                        notifySet(receiver, 'length') //FIXME:incorrect, any other property may have changed as well
-	                    }
-	                    for (let i=0,l=temp.length;i<l;i++) {
-	                    	if (temp[i]!==target[i]) {
-	                    		notifySet(receiver, i)
-	                    	}
-	                    }
+                            notifySet(receiver, 'length') //FIXME:incorrect, any other property may have changed as well
+                        }
+                        for (let i=0,l=temp.length;i<l;i++) {
+                            if (temp[i]!==target[i]) {
+                                notifySet(receiver, i)
+                            }
+                        }
                         return result
                     }
                 }
             }
-		}
-		notifyGet(receiver, property)
-		return target[property]
-	},
-	set: (target, property, value, receiver) => {
-		if (property===immutable) {
-			target[property]=value
-		} else if (target[property]!==value) {
-			if (target[immutable]) {
-				throw new Error('This signal is immutable', {cause: receiver})
-			}
-			target[property] = value
-			notifySet(receiver, property)
-		}
-		return true
-	},
-	has: (target, property, receiver) => {
-		notifyGet(receiver, property)
-		return Object.hasOwn(target, property)
-	},
-	deleteProperty: (target, property, receiver) => {
-		if (typeof target[property] !== 'undefined') {
-			if (target[immutable]) {
-				throw new Error('This signal is immutable', {cause: receiver})
-			}
-			delete target[property]		
-			notifySet(receiver, property)
-		}
-	}
+        }
+        notifyGet(receiver, property)
+        return target[property]
+    },
+    set: (target, property, value, receiver) => {
+        if (property===immutable) {
+            target[property]=value
+        } else if (target[property]!==value) {
+            if (target[immutable]) {
+                throw new Error('This signal is immutable', {cause: receiver})
+            }
+            target[property] = value
+            notifySet(receiver, property)
+        }
+        return true
+    },
+    has: (target, property, receiver) => {
+        notifyGet(receiver, property)
+        return Object.hasOwn(target, property)
+    },
+    deleteProperty: (target, property, receiver) => {
+        if (typeof target[property] !== 'undefined') {
+            if (target[immutable]) {
+                throw new Error('This signal is immutable', {cause: receiver})
+            }
+            delete target[property]        
+            notifySet(receiver, property)
+        }
+    }
 }
 
 /**
@@ -63,7 +64,7 @@ const signalHandler = {
  * to allow reactive functions to be triggered when signal values change.
  */
 export function signal(v) {
-	return new Proxy(v, signalHandler)
+    return new Proxy(v, signalHandler)
 }
 
 /**
@@ -72,12 +73,12 @@ export function signal(v) {
  * to re-compute its values
  */
 function notifySet(self, property) {
-	let listeners = getListeners(self, property)
-	if (listeners) {
-		for (let listener of Array.from(listeners)) {
-			listener()
-		}
-	}
+    let listeners = getListeners(self, property)
+    if (listeners) {
+        for (let listener of Array.from(listeners)) {
+            listener()
+        }
+    }
 }
 
 /**
@@ -87,40 +88,40 @@ function notifySet(self, property) {
  * listeners. These are later called if this property changes
  */
 function notifyGet(self, property) {
-	let currentCompute = computeStack[computeStack.length-1]
-	if (currentCompute) {
-		// get was part of a react() function, so add it
-		setListeners(self, property, currentCompute)
-	}
+    let currentCompute = computeStack[computeStack.length-1]
+    if (currentCompute) {
+        // get was part of a react() function, so add it
+        setListeners(self, property, currentCompute)
+    }
 }
 
 const listenersMap = new WeakMap()
 const computeMap = new WeakMap()
 
 function getListeners(self, property) {
-	let listeners = listenersMap.get(self)
-	return listeners?.[property]
+    let listeners = listenersMap.get(self)
+    return listeners?.[property]
 }
 
 function setListeners(self, property, compute) {
-	if (!listenersMap.has(self)) {
-		listenersMap.set(self, {})
-	}
-	let listeners = listenersMap.get(self)
-	if (!listeners[property]) {
-		listeners[property] = new Set()
-	}
-	listeners[property].add(compute)
-	listenersMap.set(self, listeners)
+    if (!listenersMap.has(self)) {
+        listenersMap.set(self, {})
+    }
+    let listeners = listenersMap.get(self)
+    if (!listeners[property]) {
+        listeners[property] = new Set()
+    }
+    listeners[property].add(compute)
+    listenersMap.set(self, listeners)
 
-	if (!computeMap.has(compute)) {
-		computeMap.set(compute, {})
-	}
-	let connectedSignals = computeMap.get(compute)
-	if (!connectedSignals[property]) {
-		connectedSignals[property] = new Set
-	}
-	connectedSignals[property].add(self)
+    if (!computeMap.has(compute)) {
+        computeMap.set(compute, {})
+    }
+    let connectedSignals = computeMap.get(compute)
+    if (!connectedSignals[property]) {
+        connectedSignals[property] = new Set
+    }
+    connectedSignals[property].add(self)
 }
 
 /**
@@ -129,17 +130,17 @@ function setListeners(self, property, compute) {
  * based on the current call (code path)
  */
 function clearListeners(compute) {
-	let connectedSignals = computeMap.get(compute)
-	if (connectedSignals) {
-		Object.keys(connectedSignals).forEach(property => {
-			connectedSignals[property].forEach(s => {
-				let listeners = listenersMap.get(s)
-				if (listeners?.[property]) {
-					listeners[property].delete(compute)
-				}
-			})
-		})
-	}
+    let connectedSignals = computeMap.get(compute)
+    if (connectedSignals) {
+        Object.keys(connectedSignals).forEach(property => {
+            connectedSignals[property].forEach(s => {
+                let listeners = listenersMap.get(s)
+                if (listeners?.[property]) {
+                    listeners[property].delete(compute)
+                }
+            })
+        })
+    }
 }
 
 const computeStack = []
@@ -153,27 +154,27 @@ const reactStack = []
  * is used by the given function (or at least signals used in the previous run).
  */
 export function update(fn) {
-	if (reactStack.findIndex(f => fn==f)!==-1) {
-		throw new Error('Recursive react() call', {cause:fn})
-	}
-	reactStack.push(fn)
+    if (reactStack.findIndex(f => fn==f)!==-1) {
+        throw new Error('Recursive react() call', {cause:fn})
+    }
+    reactStack.push(fn)
 
-	let connectedSignal = signals.get(fn)
-	if (!connectedSignal) {
-		connectedSignal = signal({})
-		signals.set(fn, connectedSignal)
-	}
-	const reactor = function reactor() {
-		clearListeners(reactor)
-		computeStack.push(reactor)
-		let result = fn()
-		computeStack.pop()
-		connectedSignal[immutable] = false
-		Object.assign(connectedSignal, result)
-		connectedSignal[immutable] = true
-	}
-	reactor()
-	return connectedSignal
+    let connectedSignal = signals.get(fn)
+    if (!connectedSignal) {
+        connectedSignal = signal({})
+        signals.set(fn, connectedSignal)
+    }
+    const reactor = function reactor() {
+        clearListeners(reactor)
+        computeStack.push(reactor)
+        let result = fn()
+        computeStack.pop()
+        connectedSignal[immutable] = false
+        Object.assign(connectedSignal, result)
+        connectedSignal[immutable] = true
+    }
+    reactor()
+    return connectedSignal
 }
 
 /*
