@@ -1,5 +1,29 @@
 const signalHandler = {
 	get: (target, property, receiver) => {
+		if (typeof target[property]==='function') {
+			if (Array.isArray(target)) {
+				if (typeof property === 'symbol') {
+					return target[property] // iterators and stuff, don't mess with them
+				}
+                if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift']
+                	.indexOf(property)!==-1)
+                {
+                    return (...args) => {
+                    	let temp = target.slice()
+                        let result = target[property].apply(target, args)
+                        if (temp.length!==target.length) {
+	                        notifySet(receiver, 'length') //FIXME:incorrect, any other property may have changed as well
+	                    }
+	                    for (let i=0,l=temp.length;i<l;i++) {
+	                    	if (temp[i]!==target[i]) {
+	                    		notifySet(receiver, i)
+	                    	}
+	                    }
+                        return result
+                    }
+                }
+            }
+		}
 		notifyGet(receiver, property)
 		return target[property]
 	},
@@ -138,6 +162,17 @@ export function update(fn) {
 	return connectedSignal
 }
 
+const immutableHandler = {
+	set: (target, prop, value, receiver) => {
+		throw new Error('You cannot change this object directly, it is computed automatically as an update() function', { cause: receiver})
+	},
+	deleteProperty: (target, prop, receiver) => {
+		throw new Error('You cannot change this object directly, it is computed automatically as an update() function', { cause: receiver})		
+	}
+}
+function immutableProxy(p) {
+	return new Proxy(p, immutableHandler)
+}
 /*
 issues:
 - signal(v) -> v must be an object

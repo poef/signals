@@ -1,7 +1,7 @@
 import { signal, update } from '../src/signals.mjs'
 import tap from 'tap'
 
-tap.test(t => {
+tap.test('objects', t => {
 	let A = signal({value: 'A'})
 
 	let B = signal({value: 'B'})
@@ -30,5 +30,62 @@ tap.test(t => {
 	t.same(D, {
 		value: 'XBB'
 	})
+	t.end()
+})
+
+tap.test('arrays', t => {
+	let A = signal([1,2])
+	let B = update(() => {
+		return { count: A.length }
+	})
+	t.equal(B.count, A.length)
+	t.equal(B.count, 2)
+	A.push(3)
+	t.equal(B.count, A.length)
+	t.equal(B.count, 3)
+	t.end()
+})
+
+tap.test('update signals can be assigned temporarily', t => {
+	let A = signal({value: 'A'})
+	let B = update(() => {
+		return { value: A.value+'B'}
+	})
+	let C = update(() => {
+		return { value: A.value + B.value }
+	})
+	t.same(C.value, 'AAB')
+	B.value = 'X'; // overwrite computed value
+	t.same(C.value, 'AX')
+	A.value = 'Z'; // triggers B again
+	t.same(C.value, 'ZZB')
+	t.end()
+})
+/*
+tap.test('cycles', t => {
+	let A = signal({value: 'A'})
+	let B = signal({value: 'B'})
+	B = update(() => {
+		return { value: A.value+B.value}
+	})
+	A.value = 'X'; // expect to throw a cycle error here
+	t.end()
+})
+*/
+
+tap.test('array indexes', t => {
+	let A = signal({value: 'A'})
+	let B = signal({value: 'B'})
+	let C = signal([A,B])
+	let D = update(() => {
+		return {
+			value: C[0]
+		}
+	})
+	t.same(D.value, C[0])
+	t.same(C[0],A)
+	C.reverse()
+	t.same(D.value, C[0])
+	t.same(C[0], B)
 	t.end()
 })
