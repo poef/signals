@@ -148,14 +148,14 @@ const computeStack = []
 const signals = new WeakMap()
 
 const reactStack = []
-
+const signalStack = []
 /**
  * Runs the given function at once, and then whenever a signal changes that
  * is used by the given function (or at least signals used in the previous run).
  */
 export function update(fn) {
     if (reactStack.findIndex(f => fn==f)!==-1) {
-        throw new Error('Recursive react() call', {cause:fn})
+        throw new Error('Recursive update() call', {cause:fn})
     }
     reactStack.push(fn)
 
@@ -165,10 +165,15 @@ export function update(fn) {
         signals.set(fn, connectedSignal)
     }
     const reactor = function reactor() {
+    	if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
+    		throw new Error('Cyclical dependency in update() call', { cause: fn})
+    	}
         clearListeners(reactor)
         computeStack.push(reactor)
+        signalStack.push(connectedSignal)
         let result = fn()
         computeStack.pop()
+        signalStack.pop()
         connectedSignal[immutable] = false
         Object.assign(connectedSignal, result)
         connectedSignal[immutable] = true

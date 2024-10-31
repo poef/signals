@@ -58,17 +58,18 @@ tap.test('immutable update results', t => {
 	t.end();
 })
 
-/*
+
 tap.test('cycles', t => {
 	let A = signal({value: 'A'})
 	let B = signal({value: 'B'})
 	B = update(() => {
 		return { value: A.value+B.value}
 	})
-	A.value = 'X'; // expect to throw a cycle error here
+	t.throws(() => {
+		A.value = 'X'; // expect to throw a cycle error here
+	})
 	t.end()
 })
-*/
 
 tap.test('array indexes', t => {
 	let A = signal({value: 'A'})
