@@ -1,3 +1,4 @@
+const immutable = Symbol('immutable')
 const signalHandler = {
 	get: (target, property, receiver) => {
 		if (typeof target[property]==='function') {
@@ -8,6 +9,9 @@ const signalHandler = {
                 if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift']
                 	.indexOf(property)!==-1)
                 {
+                    if (target[immutable]) {
+                        throw new Error('This signal is immutable', {cause: receiver})
+                    }
                     return (...args) => {
                     	let temp = target.slice()
                         let result = target[property].apply(target, args)
@@ -28,7 +32,12 @@ const signalHandler = {
 		return target[property]
 	},
 	set: (target, property, value, receiver) => {
-		if (target[property]!==value) {
+		if (property===immutable) {
+			target[property]=value
+		} else if (target[property]!==value) {
+			if (target[immutable]) {
+				throw new Error('This signal is immutable', {cause: receiver})
+			}
 			target[property] = value
 			notifySet(receiver, property)
 		}
@@ -40,6 +49,9 @@ const signalHandler = {
 	},
 	deleteProperty: (target, property, receiver) => {
 		if (typeof target[property] !== 'undefined') {
+			if (target[immutable]) {
+				throw new Error('This signal is immutable', {cause: receiver})
+			}
 			delete target[property]		
 			notifySet(receiver, property)
 		}
@@ -156,23 +168,14 @@ export function update(fn) {
 		computeStack.push(reactor)
 		let result = fn()
 		computeStack.pop()
+		connectedSignal[immutable] = false
 		Object.assign(connectedSignal, result)
+		connectedSignal[immutable] = true
 	}
 	reactor()
 	return connectedSignal
 }
 
-const immutableHandler = {
-	set: (target, prop, value, receiver) => {
-		throw new Error('You cannot change this object directly, it is computed automatically as an update() function', { cause: receiver})
-	},
-	deleteProperty: (target, prop, receiver) => {
-		throw new Error('You cannot change this object directly, it is computed automatically as an update() function', { cause: receiver})		
-	}
-}
-function immutableProxy(p) {
-	return new Proxy(p, immutableHandler)
-}
 /*
 issues:
 - signal(v) -> v must be an object

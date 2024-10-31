@@ -1,6 +1,7 @@
 import { signal, update } from '../src/signals.mjs'
 import tap from 'tap'
 
+
 tap.test('objects', t => {
 	let A = signal({value: 'A'})
 
@@ -46,21 +47,17 @@ tap.test('arrays', t => {
 	t.end()
 })
 
-tap.test('update signals can be assigned temporarily', t => {
+tap.test('immutable update results', t => {
 	let A = signal({value: 'A'})
 	let B = update(() => {
 		return { value: A.value+'B'}
 	})
-	let C = update(() => {
-		return { value: A.value + B.value }
+	t.throws(() => {
+		B.value = 'X'; // overwrite computed value
 	})
-	t.same(C.value, 'AAB')
-	B.value = 'X'; // overwrite computed value
-	t.same(C.value, 'AX')
-	A.value = 'Z'; // triggers B again
-	t.same(C.value, 'ZZB')
-	t.end()
+	t.end();
 })
+
 /*
 tap.test('cycles', t => {
 	let A = signal({value: 'A'})
