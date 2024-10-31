@@ -12,7 +12,7 @@ const signalHandler = {
 	},
 	has: (target, property, receiver) => {
 		notifyGet(receiver, property)
-		return hasOwnKey(target, property)
+		return Object.hasOwn(target, property)
 	},
 	deleteProperty: (target, property, receiver) => {
 		if (typeof target[property] !== 'undefined') {

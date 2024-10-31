@@ -1,0 +1,36 @@
+{
+	"name": "@muze-nl/signals",
+	"version": "0.1.0",
+	"description": "Simple javascript signals and reactive functions",
+	"type": "module",
+	"author": "Auke van Slooten <auke@muze.nl>",
+	"keywords": [
+		"signal",
+		"reactive programming"
+	],
+	"homepage": "https://github.com/muze-nl/signals",
+	"bugs": {
+		"url": "https://github.com/muze-nl/signals/issues"
+	},
+	"license": "MIT",
+	"main": "./src/signals.mjs",
+	"scripts": {
+		"test": "tap test/test.*.mjs",
+		"repl": "NODE_REPL_HISTORY=repl/history.repl node repl/repl.mjs"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/muze-nl/signals.git"
+	},
+	"engines": {
+		"node": ">=20.0.0"
+	},
+	"devDependencies": {
+		"eslint": "^8.48.0",
+		"tap": "~16.3.7"
+	},
+	"files": [
+		"src/",
+		"README.md"
+	]
+}
