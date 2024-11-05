@@ -1,4 +1,4 @@
-import { signal, update } from '../src/signals.mjs'
+import { signal, effect } from '../src/signals.mjs'
 import tap from 'tap'
 
 
@@ -7,7 +7,7 @@ tap.test('objects', t => {
 
 	let B = signal({value: 'B'})
 
-	let C = update(() => {
+	let C = effect(() => {
 		return { value: A.value + B.value }
 	})	
 
@@ -15,7 +15,7 @@ tap.test('objects', t => {
 		value: 'AB'
 	})
 
-	let D = update(() => {
+	let D = effect(() => {
 		return { value: C.value + B.value }	
 	})
 
@@ -36,7 +36,7 @@ tap.test('objects', t => {
 
 tap.test('arrays', t => {
 	let A = signal([1,2])
-	let B = update(() => {
+	let B = effect(() => {
 		return { count: A.length }
 	})
 	t.equal(B.count, A.length)
@@ -47,9 +47,9 @@ tap.test('arrays', t => {
 	t.end()
 })
 
-tap.test('immutable update results', t => {
+tap.test('immutable effect results', t => {
 	let A = signal({value: 'A'})
-	let B = update(() => {
+	let B = effect(() => {
 		return { value: A.value+'B'}
 	})
 	t.throws(() => {
@@ -62,7 +62,7 @@ tap.test('immutable update results', t => {
 tap.test('cycles', t => {
 	let A = signal({value: 'A'})
 	let B = signal({value: 'B'})
-	B = update(() => {
+	B = effect(() => {
 		return { value: A.value+B.value}
 	})
 	t.throws(() => {
@@ -75,7 +75,7 @@ tap.test('array indexes', t => {
 	let A = signal({value: 'A'})
 	let B = signal({value: 'B'})
 	let C = signal([A,B])
-	let D = update(() => {
+	let D = effect(() => {
 		return {
 			value: C[0]
 		}

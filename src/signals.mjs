@@ -95,14 +95,30 @@ function notifyGet(self, property) {
     }
 }
 
+/**
+ * Keeps track of which update() functions are dependent on which
+ * signal objects and which properties. Maps signals to update fns
+ */
 const listenersMap = new WeakMap()
+
+/**
+ * Keeps track of which signals and properties are linked to which
+ * update functions. Maps update functions and properties to signals
+ */
 const computeMap = new WeakMap()
 
+/**
+ * Returns the update functions for a given signal and property
+ */
 function getListeners(self, property) {
     let listeners = listenersMap.get(self)
     return listeners?.[property]
 }
 
+/**
+ * Adds an update function (compute) to the list of listeners on
+ * the given signal (self) and property
+ */
 function setListeners(self, property, compute) {
     if (!listenersMap.has(self)) {
         listenersMap.set(self, {})
@@ -143,17 +159,37 @@ function clearListeners(compute) {
     }
 }
 
+/**
+ * The top most entry is the currently running update function, used
+ * to automatically record signals used in an update function.
+ */
 const computeStack = []
 
+/**
+ * Keeps track of the return signal for an update function, so that
+ * on re-running the update function, the same signal is updated.
+ */
 const signals = new WeakMap()
 
+/**
+ * Used for cycle detection: reactStack contains all running update
+ * functions. If the same function appears twice in this stack, there
+ * is a recursive update call, which would cause an infinite loop.
+ */
 const reactStack = []
+
+/**
+ * Used for cycle detection: signalStack contains all used signals. 
+ * If the same signal appears more than once, there is a cyclical 
+ * dependency between signals, which would cause an infinite loop.
+ */
 const signalStack = []
+
 /**
  * Runs the given function at once, and then whenever a signal changes that
  * is used by the given function (or at least signals used in the previous run).
  */
-export function update(fn) {
+export function effect(fn) {
     if (reactStack.findIndex(f => fn==f)!==-1) {
         throw new Error('Recursive update() call', {cause:fn})
     }
@@ -164,27 +200,37 @@ export function update(fn) {
         connectedSignal = signal({})
         signals.set(fn, connectedSignal)
     }
+
+    // this is the function that is called automatically
+    // whenever a signal dependency changes
     const reactor = function reactor() {
     	if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
     		throw new Error('Cyclical dependency in update() call', { cause: fn})
     	}
+        // remove all dependencies (singals) from previous runs 
         clearListeners(reactor)
+        // record new dependencies on this run
         computeStack.push(reactor)
+        // prevent recursion
         signalStack.push(connectedSignal)
+        // call the actual update function
         let result = fn()
+        // stop recording dependencies
         computeStack.pop()
+        // stop the recursion prevention
         signalStack.pop()
+
+        // outside this function, connectedSignal is immutable
+        // and should throw an error when trying to change its
+        // properties, because it should only change based
+        // on the result of fn(). But here is where this is set
+        // so the immutable Symbol is used to allow changes to
+        // connectedSignal here.
         connectedSignal[immutable] = false
         Object.assign(connectedSignal, result)
         connectedSignal[immutable] = true
     }
+    // always call the update function upon creation of the reactor
     reactor()
     return connectedSignal
 }
-
-/*
-issues:
-- signal(v) -> v must be an object
-- fn() -> result must be an object
-- no lazy evaluation yet
-*/
