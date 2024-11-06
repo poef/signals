@@ -87,3 +87,18 @@ tap.test('array indexes', t => {
 	t.same(C[0], B)
 	t.end()
 })
+
+tap.test('deep object signals', t => {
+	let A = signal({
+		foo: {
+			bar: "baz"
+		}
+	})
+	let B = effect(() => {
+		return { value: 'foo.bar is now '+A.foo.bar}
+	})
+	t.same(B.value, 'foo.bar is now baz')
+	A.foo.bar = 'bar'
+	t.same(B.value, 'foo.bar is now bar')
+	t.end()
+})

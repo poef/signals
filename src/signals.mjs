@@ -28,8 +28,13 @@ const signalHandler = {
                     }
                 }
             }
+        } else {
+            notifyGet(receiver, property)
+            if (target[property] && typeof target[property] == 'object') {
+                //NOTE: get now returns a signal, set doesn't 'unsignal' the value set
+                return signal(target[property])
+            }
         }
-        notifyGet(receiver, property)
         return target[property]
     },
     set: (target, property, value, receiver) => {
@@ -39,7 +44,7 @@ const signalHandler = {
             if (target[immutable]) {
                 throw new Error('This signal is immutable', {cause: receiver})
             }
-            target[property] = value
+            target[property] = value //FIXME: should we unwrap a signal here?
             notifySet(receiver, property)
         }
         return true
@@ -60,11 +65,22 @@ const signalHandler = {
 }
 
 /**
+ * Keeps track of the return signal for an update function, as well
+ * as signals connected to other objects. 
+ * Makes sure that a given object or function always uses the same
+ * signal
+ */
+const signals = new WeakMap()
+
+/**
  * Creates a new signal proxy of the given object, that intercepts get/has and set/delete
  * to allow reactive functions to be triggered when signal values change.
  */
 export function signal(v) {
-    return new Proxy(v, signalHandler)
+    if (!signals.has(v)) {
+        signals.set(v, new Proxy(v, signalHandler))
+    }
+    return signals.get(v)
 }
 
 /**
@@ -165,18 +181,13 @@ function clearListeners(compute) {
  */
 const computeStack = []
 
-/**
- * Keeps track of the return signal for an update function, so that
- * on re-running the update function, the same signal is updated.
- */
-const signals = new WeakMap()
 
 /**
- * Used for cycle detection: reactStack contains all running update
+ * Used for cycle detection: effectStack contains all running effect
  * functions. If the same function appears twice in this stack, there
  * is a recursive update call, which would cause an infinite loop.
  */
-const reactStack = []
+const effectStack = []
 
 /**
  * Used for cycle detection: signalStack contains all used signals. 
@@ -190,10 +201,10 @@ const signalStack = []
  * is used by the given function (or at least signals used in the previous run).
  */
 export function effect(fn) {
-    if (reactStack.findIndex(f => fn==f)!==-1) {
+    if (effectStack.findIndex(f => fn==f)!==-1) {
         throw new Error('Recursive update() call', {cause:fn})
     }
-    reactStack.push(fn)
+    effectStack.push(fn)
 
     let connectedSignal = signals.get(fn)
     if (!connectedSignal) {
@@ -203,14 +214,14 @@ export function effect(fn) {
 
     // this is the function that is called automatically
     // whenever a signal dependency changes
-    const reactor = function reactor() {
+    const computeEffect = function computeEffect() {
     	if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
     		throw new Error('Cyclical dependency in update() call', { cause: fn})
     	}
-        // remove all dependencies (singals) from previous runs 
-        clearListeners(reactor)
+        // remove all dependencies (signals) from previous runs 
+        clearListeners(computeEffect)
         // record new dependencies on this run
-        computeStack.push(reactor)
+        computeStack.push(computeEffect)
         // prevent recursion
         signalStack.push(connectedSignal)
         // call the actual update function
@@ -230,7 +241,7 @@ export function effect(fn) {
         Object.assign(connectedSignal, result)
         connectedSignal[immutable] = true
     }
-    // always call the update function upon creation of the reactor
-    reactor()
+    // run the computEffect immediately upon creation
+    computeEffect()
     return connectedSignal
 }
