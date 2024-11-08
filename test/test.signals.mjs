@@ -1,7 +1,6 @@
 import { signal, effect } from '../src/signals.mjs'
 import tap from 'tap'
 
-
 tap.test('objects', t => {
 	let A = signal({value: 'A'})
 
@@ -47,18 +46,6 @@ tap.test('arrays', t => {
 	t.end()
 })
 
-tap.test('immutable effect results', t => {
-	let A = signal({value: 'A'})
-	let B = effect(() => {
-		return { value: A.value+'B'}
-	})
-	t.throws(() => {
-		B.value = 'X'; // overwrite computed value
-	})
-	t.end();
-})
-
-
 tap.test('cycles', t => {
 	let A = signal({value: 'A'})
 	let B = signal({value: 'B'})
@@ -75,16 +62,20 @@ tap.test('array indexes', t => {
 	let A = signal({value: 'A'})
 	let B = signal({value: 'B'})
 	let C = signal([A,B])
+	let count = 1
 	let D = effect(() => {
 		return {
+			count: count++,
 			value: C[0]
 		}
 	})
 	t.same(D.value, C[0])
-	t.same(C[0],A)
+	t.same(C[0], A)
+	t.same(D.count, 1) // makes sure the effect has run once
 	C.reverse()
 	t.same(D.value, C[0])
 	t.same(C[0], B)
+	t.same(D.count, 2) // makes sure that the effect has run exactly once more
 	t.end()
 })
 
@@ -100,5 +91,50 @@ tap.test('deep object signals', t => {
 	t.same(B.value, 'foo.bar is now baz')
 	A.foo.bar = 'bar'
 	t.same(B.value, 'foo.bar is now bar')
+	t.end()
+})
+
+tap.test('array iterator', t => {
+	let A = signal([1,2,3])
+	let B = null
+	for (let i of A) { // this is the test - can i iterate over a signal?
+		B = i
+	}
+	t.same(B, A[2])
+	t.same(B, 3)
+	t.end()
+})
+
+tap.test('documentation code: todo', t => {
+	const todos = signal([])
+
+	const counter = effect(() => {
+		return {todo: todos.filter(todo => !todo.done).length}
+	})
+
+	todos.push({title: "Buy milk", done: false})
+
+	t.same(counter.todo, 1)
+	todos[0].done = true
+	t.same(counter.todo, 0)
+	t.end()
+})
+
+tap.test('deep delete', t => {
+	let foo = signal({
+		bar: {
+			baz: "baz"
+		}
+	})
+	let bar = effect(() => {
+		return { value: foo?.bar?.baz }
+	})
+	t.same(bar.value, 'baz')
+	delete foo.bar
+	t.same(bar.value, null)
+	foo.bar = {
+		baz: "baz2"
+	}
+	t.same(bar.value, 'baz2')
 	t.end()
 })

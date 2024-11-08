@@ -45,11 +45,13 @@ const signalHandler = {
         }
         return Object.hasOwn(target, property)
     },
-    deleteProperty: (target, property, receiver) => {
+    deleteProperty: (target, property) => {
         if (typeof target[property] !== 'undefined') {
-            delete target[property]        
-            notifySet(receiver, property)
+            delete target[property]
+            let receiver = signals.get(target) // receiver is not part of the trap arguments, so retrieve it here
+            notifySet(receiver, property, true)
         }
+        return true
     }
 }
 
@@ -77,7 +79,7 @@ export function signal(v) {
  * Triggers any reactor function that depends on this signal
  * to re-compute its values
  */
-function notifySet(self, property) {
+function notifySet(self, property, isdelete=false) {
     let listeners = getListeners(self, property)
     if (listeners) {
         for (let listener of Array.from(listeners)) {
