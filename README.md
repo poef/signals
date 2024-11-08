@@ -1,8 +1,26 @@
 # SimplySignal - Write simple reactive code.
 
-A simple reactive code library. SimplySignal provides a Signal and Effect implementation that work seamlessly together. Signals are variables that can trigger Effects whenever a signal changes. Effects are functions that are run automatically whenever a signal used in that function changes. An Effect in SimplySignal also returns and updates a Signal.
+## Introduction
 
-Create a Signal like this:
+```javascript
+import {signal, effect} from '@muze-nl/simplysignal'
+
+let todos = signal([])
+
+let counter = effect(() => {
+	return {todo: todos.filter(todo => !todo.done).length}
+})
+
+todos.push({title: "Buy milk", done: false})
+
+console.log(counter.todo) // prints 1
+```
+
+If you haven't seen reactive code before, it works very similar to how a spreadsheet updates cells with a formula inside. Whenever you change a number, the affected formulas re-calculate their values automatically. In the same way, whenever you change a Signals value, affected Effects are re-run and update their result Signal.
+
+The two core concepts are Signals and Effects.
+
+A Signal is an object which keeps track of get/set access to itself. You create a Signal like this:
 
 ```javascript
 import {signal} from '@muze-nl/simplysignal'
@@ -12,25 +30,36 @@ let foo = signal({ bar: "bar" })
 console.log(foo.bar) // prints "bar"
 ```
 
-A signal must be an object (or an array). You cannot create a signal with just a string, number or boolean. This is because SimplySignal uses Proxy to track access to a signal, and a Proxy can only work on objects.
+A signal must be an object (or an array). You cannot create a signal with just a string, number or boolean. If you need to do that, wrap the value in an object, e.g.:
 
-The advantage is that a signal works just like any other object. So no other library needs to change to accept a signal as input.
+```javascript
+let s = signal({ value: "bar" })
+```
 
-Create an effect like this:
+An Effect is a function that is (re)run whenever a Signal that it uses changes. You create an effect like this:
 
 ```javascript
 import {signal, effect} from '@muze-nl/simplysignal'
 
 let todos = signal([])
-let todosLength = effect(() => {
-	return {length: todos.length}
+
+let counter = effect(() => {
+	return {todo: todos.filter(todo => !todo.done).length}
 })
-todos.push({title: "Buy milk"})
-console.log(todosLength.length) // prints 1
+
+todos.push({title: "Buy milk", done: false})
+
+console.log(counter.todo) // prints 1
 ```
 
-As you can see, an effect returns another signal, one that changes whenever the effect is run again, because one of its dependencies has changed.
-
-You don't need to assign this returned signal, you can just ignore it. But it means that you can use the calculated effect as a dependency in another effect.
+In this case the effect returns something, an object. That is automatically turned into a Signal. You don't have to return anything in an effect, but if you do, it must be an object (or an array). Doing this means that you can use the result of the effect as a dependency in another effect.
 
 Effects must not be called recursively, if you try, the effect will throw an error. You also cannot depend on a signal that is the result of this effect - that would generate a cyclical dependency that could never be resolved. If you try, the effect will also throw an error.
+
+## Installation
+
+## API
+
+### signal()
+
+### effect()

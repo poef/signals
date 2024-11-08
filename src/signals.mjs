@@ -1,63 +1,52 @@
-export const immutable = Symbol('immutable')
-
 const signalHandler = {
     get: (target, property, receiver) => {
-        if (typeof target[property]==='function') {
+        const value = Reflect.get(target, property, receiver)
+        notifyGet(receiver, property)
+        if (typeof value === 'function') {
             if (Array.isArray(target)) {
-                if (typeof property === 'symbol') {
-                    return target[property] // iterators and stuff, don't mess with them
-                }
-                if (['copyWithin','fill','pop','push','reverse','shift','sort','splice','unshift']
-                    .indexOf(property)!==-1)
-                {
-                    if (target[immutable]) {
-                        throw new Error('This signal is immutable', {cause: receiver})
+                return (...args) => {
+                    let l = target.length
+                    // by binding the function to the receiver
+                    // all accesses in the function will be trapped
+                    // by the Proxy, so get/set/delete is all handled
+                    let fn = value.bind(receiver)
+                    let result = fn(...args)
+                    if (l != target.length) {
+                        notifySet(receiver, 'length')
                     }
-                    return (...args) => {
-                        let temp = target.slice()
-                        let result = target[property].apply(target, args)
-                        if (temp.length!==target.length) {
-                            notifySet(receiver, 'length') //FIXME:incorrect, any other property may have changed as well
-                        }
-                        for (let i=0,l=temp.length;i<l;i++) {
-                            if (temp[i]!==target[i]) {
-                                notifySet(receiver, i)
-                            }
-                        }
-                        return result
-                    }
+                    return result
                 }
-            }
-        } else {
-            notifyGet(receiver, property)
-            if (target[property] && typeof target[property] == 'object') {
-                //NOTE: get now returns a signal, set doesn't 'unsignal' the value set
-                return signal(target[property])
+            } else {
+                return (...args) => {
+                    let fn = value.bind(receiver)
+                    let result = fn(...args)
+                    // TODO: support Set.size?
+                    return result
+                }
             }
         }
-        return target[property]
+        if (value && typeof value == 'object') {
+            //NOTE: get now returns a signal, set doesn't 'unsignal' the value set
+            return signal(value)
+        }
+        return value
     },
     set: (target, property, value, receiver) => {
-        if (property===immutable) {
-            target[property]=value
-        } else if (target[property]!==value) {
-            if (target[immutable]) {
-                throw new Error('This signal is immutable', {cause: receiver})
-            }
+        if (target[property]!==value) {
             target[property] = value //FIXME: should we unwrap a signal here?
             notifySet(receiver, property)
         }
         return true
     },
-    has: (target, property, receiver) => {
-        notifyGet(receiver, property)
+    has: (target, property) => { // receiver is not part of the has() call
+        let receiver = signals.get(target) // so retrieve it here
+        if (receiver) {
+            notifyGet(receiver, property)
+        }
         return Object.hasOwn(target, property)
     },
     deleteProperty: (target, property, receiver) => {
         if (typeof target[property] !== 'undefined') {
-            if (target[immutable]) {
-                throw new Error('This signal is immutable', {cause: receiver})
-            }
             delete target[property]        
             notifySet(receiver, property)
         }
@@ -127,6 +116,7 @@ const computeMap = new WeakMap()
  * Returns the update functions for a given signal and property
  */
 function getListeners(self, property) {
+    property = 'prop:'+property
     let listeners = listenersMap.get(self)
     return listeners?.[property]
 }
@@ -136,6 +126,7 @@ function getListeners(self, property) {
  * the given signal (self) and property
  */
 function setListeners(self, property, compute) {
+    property = 'prop:'+property // avoid name collisions with properties like 'constructor'
     if (!listenersMap.has(self)) {
         listenersMap.set(self, {})
     }
@@ -231,15 +222,7 @@ export function effect(fn) {
         // stop the recursion prevention
         signalStack.pop()
 
-        // outside this function, connectedSignal is immutable
-        // and should throw an error when trying to change its
-        // properties, because it should only change based
-        // on the result of fn(). But here is where this is set
-        // so the immutable Symbol is used to allow changes to
-        // connectedSignal here.
-        connectedSignal[immutable] = false
         Object.assign(connectedSignal, result)
-        connectedSignal[immutable] = true
     }
     // run the computEffect immediately upon creation
     computeEffect()
