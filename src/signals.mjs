@@ -1,6 +1,6 @@
 const signalHandler = {
     get: (target, property, receiver) => {
-        const value = Reflect.get(target, property, receiver)
+        const value = target?.[property]
         notifyGet(receiver, property)
         if (typeof value === 'function') {
             if (Array.isArray(target)) {
@@ -9,20 +9,33 @@ const signalHandler = {
                     // by binding the function to the receiver
                     // all accesses in the function will be trapped
                     // by the Proxy, so get/set/delete is all handled
-                    let fn = value.bind(receiver)
-                    let result = fn(...args)
+                    let result = value.apply(receiver, args)
                     if (l != target.length) {
                         notifySet(receiver, 'length')
                     }
                     return result
                 }
-            } else {
+            } else if (target instanceof Set || target instanceof Map) {
                 return (...args) => {
-                    let fn = value.bind(receiver)
-                    let result = fn(...args)
-                    // TODO: support Set.size?
+                    let s = target.size
+                    // node doesn't allow you to call set/map functions
+                    // bound to the receiver.. so using target instead
+                    // there are no properties to update anyway, except for size
+                    let result = value.apply(target, args)
+                    if (s != target.size) {
+                        notifySet(receiver, 'size')
+                    }
+                    // there is no efficient way to see if the function called
+                    // has actually changed the Set/Map, but by assuming the
+                    // 'setter' functions will change the results of the
+                    // 'getter' functions, effects should update correctly
+                    if (['set','add','clear','delete'].includes(property)) {
+                        notifySet(receiver, ['entries','forEach','has','keys','values',Symbol.iterator])
+                    }
                     return result
                 }
+            } else {
+                return value.bind(receiver)
             }
         }
         if (value && typeof value == 'object') {
@@ -79,8 +92,18 @@ export function signal(v) {
  * Triggers any reactor function that depends on this signal
  * to re-compute its values
  */
-function notifySet(self, property, isdelete=false) {
-    let listeners = getListeners(self, property)
+function notifySet(self, properties, isdelete=false) {
+    if (!Array.isArray(properties)) {
+        properties = [properties]
+    }
+    let listeners = []
+    properties.forEach(property => {
+        let propListeners = getListeners(self, property)
+        if (propListeners?.size) {
+            listeners = listeners.concat(Array.from(propListeners))
+        }
+    })
+    listeners = new Set(listeners.filter(Boolean))
     if (listeners) {
         for (let listener of Array.from(listeners)) {
             listener()
@@ -118,9 +141,8 @@ const computeMap = new WeakMap()
  * Returns the update functions for a given signal and property
  */
 function getListeners(self, property) {
-    property = 'prop:'+property
     let listeners = listenersMap.get(self)
-    return listeners?.[property]
+    return listeners?.get(property)
 }
 
 /**
@@ -128,25 +150,23 @@ function getListeners(self, property) {
  * the given signal (self) and property
  */
 function setListeners(self, property, compute) {
-    property = 'prop:'+property // avoid name collisions with properties like 'constructor'
     if (!listenersMap.has(self)) {
-        listenersMap.set(self, {})
+        listenersMap.set(self, new Map())
     }
     let listeners = listenersMap.get(self)
-    if (!listeners[property]) {
-        listeners[property] = new Set()
+    if (!listeners.has(property)) {
+        listeners.set(property, new Set())
     }
-    listeners[property].add(compute)
-    listenersMap.set(self, listeners)
+    listeners.get(property).add(compute)
 
     if (!computeMap.has(compute)) {
-        computeMap.set(compute, {})
+        computeMap.set(compute, new Map())
     }
     let connectedSignals = computeMap.get(compute)
-    if (!connectedSignals[property]) {
-        connectedSignals[property] = new Set
+    if (!connectedSignals.has(property)) {
+        connectedSignals.set(property, new Set)
     }
-    connectedSignals[property].add(self)
+    connectedSignals.get(property).add(self)
 }
 
 /**
@@ -157,11 +177,11 @@ function setListeners(self, property, compute) {
 function clearListeners(compute) {
     let connectedSignals = computeMap.get(compute)
     if (connectedSignals) {
-        Object.keys(connectedSignals).forEach(property => {
-            connectedSignals[property].forEach(s => {
+        connectedSignals.forEach(property => {
+            property.forEach(s => {
                 let listeners = listenersMap.get(s)
-                if (listeners?.[property]) {
-                    listeners[property].delete(compute)
+                if (listeners.has(property)) {
+                    listeners.get(property).delete(compute)
                 }
             })
         })

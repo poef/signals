@@ -138,3 +138,55 @@ tap.test('deep delete', t => {
 	t.same(bar.value, 'baz2')
 	t.end()
 })
+
+tap.test('Set', t => {
+	let foo = signal(new Set())
+	foo.add(1)
+	let bar = effect(() => {
+		return { count: foo.size }
+	})
+	t.same(bar.count, 1)
+	foo.add(2)
+	t.same(bar.count, 2)
+	foo.add(1)
+	t.same(bar.count, 2)
+	t.end()
+})
+
+tap.test('Set functions', t => {
+	let foo = signal(new Set())
+	foo.add(1)
+	let bar = effect(() => {
+		return { joined: Array.from(foo.values()).join(',') }
+	})
+	t.same(bar.joined, '1')
+	foo.add(2)
+	t.same(bar.joined, '1,2')
+	foo.add(1)
+	t.same(bar.joined, '1,2')
+	t.end()
+})
+
+tap.test('Map', t => {
+	let foo = signal(new Map())
+	foo.set('bar', 'bar')
+	let bar = effect(() => {
+		return { count: foo.size }
+	})
+	t.same(bar.count, 1)
+	foo.set('baz','baz')
+	t.same(bar.count, 2)
+	t.end()
+})
+
+tap.test('Map functions', t => {
+	let foo = signal(new Map())
+	foo.set('bar','bar')
+	let bar = effect(() => {
+		return { joined: Array.from(foo.values()).join(',')}
+	})
+	t.same(bar.joined, 'bar')
+	foo.set('baz','baz')
+	t.same(bar.joined, 'bar,baz')
+	t.end()
+})
