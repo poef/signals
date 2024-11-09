@@ -190,3 +190,24 @@ tap.test('Map functions', t => {
 	t.same(bar.joined, 'bar,baz')
 	t.end()
 })
+
+class Foo {
+	constructor() {
+		this.bar = 'bar'
+	}
+
+	toString() {
+		return '"'+this.bar+'"'
+	}
+}
+
+tap.test('Custom class', t => {
+	let foo = signal(new Foo())
+	let bar = effect(() => {
+		return { bar: foo.toString() }
+	})
+	t.same(bar.bar, '"bar"')
+	foo.bar = 'baz'
+	t.same(bar.bar, '"baz"')
+	t.end()
+})

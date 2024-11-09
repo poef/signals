@@ -1,6 +1,6 @@
 const signalHandler = {
     get: (target, property, receiver) => {
-        const value = target?.[property]
+        const value = target?.[property] // Reflect.get fails on a Set.
         notifyGet(receiver, property)
         if (typeof value === 'function') {
             if (Array.isArray(target)) {
@@ -17,10 +17,10 @@ const signalHandler = {
                 }
             } else if (target instanceof Set || target instanceof Map) {
                 return (...args) => {
-                    let s = target.size
                     // node doesn't allow you to call set/map functions
                     // bound to the receiver.. so using target instead
                     // there are no properties to update anyway, except for size
+                    let s = target.size
                     let result = value.apply(target, args)
                     if (s != target.size) {
                         notifySet(receiver, 'size')
@@ -35,6 +35,7 @@ const signalHandler = {
                     return result
                 }
             } else {
+                // support custom classes, hopefully
                 return value.bind(receiver)
             }
         }
