@@ -288,3 +288,105 @@ function runBatchedListeners() {
         listener()
     }
 }
+
+export function throttledEffect(fn, throttleTime) {
+    if (effectStack.findIndex(f => fn==f)!==-1) {
+        throw new Error('Recursive update() call', {cause:fn})
+    }
+    effectStack.push(fn)
+
+    let connectedSignal = signals.get(fn)
+    if (!connectedSignal) {
+        connectedSignal = signal({
+            current: null
+        })
+        signals.set(fn, connectedSignal)
+    }
+
+    let throttled = false
+    // this is the function that is called automatically
+    // whenever a signal dependency changes
+    const computeEffect = function computeEffect() {
+        if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
+            throw new Error('Cyclical dependency in update() call', { cause: fn})
+        }
+        if (throttled && throttled>Date.now()) {
+            return
+        }
+        // remove all dependencies (signals) from previous runs 
+        clearListeners(computeEffect)
+        // record new dependencies on this run
+        computeStack.push(computeEffect)
+        // prevent recursion
+        signalStack.push(connectedSignal)
+        // call the actual update function
+        let result = fn()
+        // stop recording dependencies
+        computeStack.pop()
+        // stop the recursion prevention
+        signalStack.pop()
+        if (result instanceof Promise) {
+            result.then((result) => {
+                connectedSignal.current = result
+            })
+        } else {
+            connectedSignal.current = result
+        }
+        if (!throttled) {
+            throttled = Date.now()+throttleTime
+            globalThis.setTimeout(computeEffect, throttleTime)
+        }
+    }
+    // run the computEffect immediately upon creation
+    computeEffect()
+    return connectedSignal
+}
+
+export function clockEffect(fn, clock) {
+    if (effectStack.findIndex(f => fn==f)!==-1) {
+        throw new Error('Recursive update() call', {cause:fn})
+    }
+    effectStack.push(fn)
+
+    let connectedSignal = signals.get(fn)
+    if (!connectedSignal) {
+        connectedSignal = signal({
+            current: null
+        })
+        signals.set(fn, connectedSignal)
+    }
+
+    let lastTick = -1
+    // this is the function that is called automatically
+    // whenever a signal dependency changes
+    const computeEffect = function computeEffect() {
+        if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
+            throw new Error('Cyclical dependency in update() call', { cause: fn})
+        }
+        if (lastTick < clock.time) {
+            // remove all dependencies (signals) from previous runs 
+            clearListeners(computeEffect)
+            // record new dependencies on this run
+            computeStack.push(computeEffect)
+            // prevent recursion
+            signalStack.push(connectedSignal)
+            lastTick = clock.time
+            // call the actual update function
+            let result = fn()
+            // stop recording dependencies
+            computeStack.pop()
+            // stop the recursion prevention
+            signalStack.pop()
+            if (result instanceof Promise) {
+                result.then((result) => {
+                    connectedSignal.current = result
+                })
+            } else {
+                connectedSignal.current = result
+            }
+        }
+    }
+    // run the computEffect immediately upon creation
+    computeEffect()
+    return connectedSignal
+}

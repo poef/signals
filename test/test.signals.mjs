@@ -1,4 +1,4 @@
-import { signal, effect, batch } from '../src/signals.mjs'
+import { signal, effect, batch, throttledEffect, clockEffect } from '../src/signals.mjs'
 import tap from 'tap'
 
 tap.test('objects', t => {
@@ -254,4 +254,40 @@ tap.test('async effect', t => {
 			t.end()
 		}, 10)
 	},10)
+})
+
+tap.test('throttledEffect', t => {
+	let foo = signal({ value: 1})
+	let count = 0
+	let bar = throttledEffect(() => {
+		return foo.value+':'+count++
+	}, 10)
+	for (let i=0;i<10;i++) {
+		setTimeout(() => {
+			foo.value++
+		},1)
+	}
+	setTimeout(() => {
+		t.same(bar.current, '11:1')
+		t.end()
+	}, 20)
+})
+
+tap.test('clockEffect', t => {
+	let foo = signal({value: 1})
+	let count = 0
+	let clock = signal({
+		time: 0
+	})
+	let bar = clockEffect(() => {
+		return foo.value + ':' + count++
+	}, clock)
+	t.same(bar.current, '1:0')
+	foo.value = 2
+	foo.value = 3
+	t.same(bar.current, '1:0')
+	clock.time += 1
+	t.same(bar.current, '3:1')
+	t.end()
+	
 })
