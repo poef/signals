@@ -250,8 +250,13 @@ export function effect(fn) {
         computeStack.pop()
         // stop the recursion prevention
         signalStack.pop()
-
-        connectedSignal.current = result
+        if (result instanceof Promise) {
+            result.then((result) => {
+                connectedSignal.current = result
+            })
+        } else {
+            connectedSignal.current = result
+        }
     }
     // run the computEffect immediately upon creation
     computeEffect()

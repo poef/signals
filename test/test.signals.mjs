@@ -228,3 +228,20 @@ tap.test('batch mode', t => {
 	t.same(bar.current, '"Baz"')
 	t.end()
 })
+
+tap.test('async effect', t => {
+	let foo = signal({value: 'Foo'})
+	let bar = effect(async () => {
+		return '"'+foo.value+'"'
+	})
+	t.same(bar.current, null)
+	setTimeout(() => {
+		t.same(bar.current, '"Foo"')
+		foo.value = 'Bar'
+		t.same(bar.current, '"Foo"')
+		setTimeout(() => {
+			t.same(bar.current, '"Bar"')
+			t.end()
+		}, 10)
+	},10)
+})
