@@ -192,15 +192,23 @@ tap.test('Map functions', t => {
 })
 
 class Foo {
+	#bar
+
 	constructor() {
-		this.bar = 'bar'
+		this.#bar = 'bar'
 	}
 
 	toString() {
 		return '"'+this.bar+'"'
 	}
 
-	//TODO: support getter/setter functions (now triggers infinite recursion)
+	get bar() {
+		return this.#bar
+	}
+
+	set bar(value) {
+		this.#bar = value
+	}
 }
 
 tap.test('Custom class', t => {
@@ -208,8 +216,10 @@ tap.test('Custom class', t => {
 	let bar = effect(() => {
 		return foo.toString()
 	})
+	t.same(foo.bar, 'bar')
 	t.same(bar.current, '"bar"')
 	foo.bar = 'baz'
+	t.same(foo.bar, 'baz')
 	t.same(bar.current, '"baz"')
 	t.end()
 })
