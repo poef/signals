@@ -222,7 +222,9 @@ export function effect(fn) {
 
     let connectedSignal = signals.get(fn)
     if (!connectedSignal) {
-        connectedSignal = signal({})
+        connectedSignal = signal({
+            current: null
+        })
         signals.set(fn, connectedSignal)
     }
 
@@ -245,7 +247,7 @@ export function effect(fn) {
         // stop the recursion prevention
         signalStack.pop()
 
-        Object.assign(connectedSignal, result)
+        connectedSignal.current = result
     }
     // run the computEffect immediately upon creation
     computeEffect()

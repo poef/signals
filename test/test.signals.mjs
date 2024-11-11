@@ -7,28 +7,28 @@ tap.test('objects', t => {
 	let B = signal({value: 'B'})
 
 	let C = effect(() => {
-		return { value: A.value + B.value }
+		return A.value + B.value
 	})	
 
 	t.same(C, {
-		value: 'AB'
+		current: 'AB'
 	})
 
 	let D = effect(() => {
-		return { value: C.value + B.value }	
+		return C.current + B.value
 	})
 
 	t.same(D, {
-		value: 'ABB'
+		current: 'ABB'
 	})
 
 	A.value = 'X'
 
 	t.same(C, {
-		value: 'XB'
+		current: 'XB'
 	})
 	t.same(D, {
-		value: 'XBB'
+		current: 'XBB'
 	})
 	t.end()
 })
@@ -36,21 +36,21 @@ tap.test('objects', t => {
 tap.test('arrays', t => {
 	let A = signal([1,2])
 	let B = effect(() => {
-		return { count: A.length }
+		return A.length
 	})
-	t.equal(B.count, A.length)
-	t.equal(B.count, 2)
+	t.equal(B.current, A.length)
+	t.equal(B.current, 2)
 	A.push(3)
-	t.equal(B.count, A.length)
-	t.equal(B.count, 3)
+	t.equal(B.current, A.length)
+	t.equal(B.current, 3)
 	t.end()
 })
 
 tap.test('cycles', t => {
 	let A = signal({value: 'A'})
-	let B = signal({value: 'B'})
+	let B = signal({current: 'B'})
 	B = effect(() => {
-		return { value: A.value+B.value}
+		return A.value+B.current
 	})
 	t.throws(() => {
 		A.value = 'X'; // expect to throw a cycle error here
@@ -69,13 +69,13 @@ tap.test('array indexes', t => {
 			value: C[0]
 		}
 	})
-	t.same(D.value, C[0])
+	t.same(D.current.value, C[0])
 	t.same(C[0], A)
-	t.same(D.count, 1) // makes sure the effect has run once
+	t.same(D.current.count, 1) // makes sure the effect has run once
 	C.reverse()
-	t.same(D.value, C[0])
+	t.same(D.current.value, C[0])
 	t.same(C[0], B)
-	t.same(D.count, 2) // makes sure that the effect has run exactly once more
+	t.same(D.current.count, 2) // makes sure that the effect has run exactly once more
 	t.end()
 })
 
@@ -86,11 +86,11 @@ tap.test('deep object signals', t => {
 		}
 	})
 	let B = effect(() => {
-		return { value: 'foo.bar is now '+A.foo.bar}
+		return 'foo.bar is now '+A.foo.bar
 	})
-	t.same(B.value, 'foo.bar is now baz')
+	t.same(B.current, 'foo.bar is now baz')
 	A.foo.bar = 'bar'
-	t.same(B.value, 'foo.bar is now bar')
+	t.same(B.current, 'foo.bar is now bar')
 	t.end()
 })
 
@@ -109,14 +109,14 @@ tap.test('documentation code: todo', t => {
 	const todos = signal([])
 
 	const counter = effect(() => {
-		return {todo: todos.filter(todo => !todo.done).length}
+		return todos.filter(todo => !todo.done).length
 	})
 
 	todos.push({title: "Buy milk", done: false})
 
-	t.same(counter.todo, 1)
+	t.same(counter.current, 1)
 	todos[0].done = true
-	t.same(counter.todo, 0)
+	t.same(counter.current, 0)
 	t.end()
 })
 
@@ -127,15 +127,15 @@ tap.test('deep delete', t => {
 		}
 	})
 	let bar = effect(() => {
-		return { value: foo?.bar?.baz }
+		return foo?.bar?.baz
 	})
-	t.same(bar.value, 'baz')
+	t.same(bar.current, 'baz')
 	delete foo.bar
-	t.same(bar.value, null)
+	t.same(bar.current, null)
 	foo.bar = {
 		baz: "baz2"
 	}
-	t.same(bar.value, 'baz2')
+	t.same(bar.current, 'baz2')
 	t.end()
 })
 
@@ -143,13 +143,13 @@ tap.test('Set', t => {
 	let foo = signal(new Set())
 	foo.add(1)
 	let bar = effect(() => {
-		return { count: foo.size }
+		return foo.size
 	})
-	t.same(bar.count, 1)
+	t.same(bar.current, 1)
 	foo.add(2)
-	t.same(bar.count, 2)
+	t.same(bar.current, 2)
 	foo.add(1)
-	t.same(bar.count, 2)
+	t.same(bar.current, 2)
 	t.end()
 })
 
@@ -157,13 +157,13 @@ tap.test('Set functions', t => {
 	let foo = signal(new Set())
 	foo.add(1)
 	let bar = effect(() => {
-		return { joined: Array.from(foo.values()).join(',') }
+		return Array.from(foo.values()).join(',')
 	})
-	t.same(bar.joined, '1')
+	t.same(bar.current, '1')
 	foo.add(2)
-	t.same(bar.joined, '1,2')
+	t.same(bar.current, '1,2')
 	foo.add(1)
-	t.same(bar.joined, '1,2')
+	t.same(bar.current, '1,2')
 	t.end()
 })
 
@@ -171,11 +171,11 @@ tap.test('Map', t => {
 	let foo = signal(new Map())
 	foo.set('bar', 'bar')
 	let bar = effect(() => {
-		return { count: foo.size }
+		return foo.size
 	})
-	t.same(bar.count, 1)
+	t.same(bar.current, 1)
 	foo.set('baz','baz')
-	t.same(bar.count, 2)
+	t.same(bar.current, 2)
 	t.end()
 })
 
@@ -183,11 +183,11 @@ tap.test('Map functions', t => {
 	let foo = signal(new Map())
 	foo.set('bar','bar')
 	let bar = effect(() => {
-		return { joined: Array.from(foo.values()).join(',')}
+		return Array.from(foo.values()).join(',')
 	})
-	t.same(bar.joined, 'bar')
+	t.same(bar.current, 'bar')
 	foo.set('baz','baz')
-	t.same(bar.joined, 'bar,baz')
+	t.same(bar.current, 'bar,baz')
 	t.end()
 })
 
@@ -199,15 +199,17 @@ class Foo {
 	toString() {
 		return '"'+this.bar+'"'
 	}
+
+	//TODO: support getter/setter functions (now triggers infinite recursion)
 }
 
 tap.test('Custom class', t => {
 	let foo = signal(new Foo())
 	let bar = effect(() => {
-		return { bar: foo.toString() }
+		return foo.toString()
 	})
-	t.same(bar.bar, '"bar"')
+	t.same(bar.current, '"bar"')
 	foo.bar = 'baz'
-	t.same(bar.bar, '"baz"')
+	t.same(bar.current, '"baz"')
 	t.end()
 })
