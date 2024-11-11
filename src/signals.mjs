@@ -356,7 +356,8 @@ export function clockEffect(fn, clock) {
         signals.set(fn, connectedSignal)
     }
 
-    let lastTick = -1
+    let lastTick = -1 // clock.time should start at 0 or larger
+    let hasChanged = true // make sure the first run goes through
     // this is the function that is called automatically
     // whenever a signal dependency changes
     const computeEffect = function computeEffect() {
@@ -364,26 +365,32 @@ export function clockEffect(fn, clock) {
             throw new Error('Cyclical dependency in update() call', { cause: fn})
         }
         if (lastTick < clock.time) {
-            // remove all dependencies (signals) from previous runs 
-            clearListeners(computeEffect)
-            // record new dependencies on this run
-            computeStack.push(computeEffect)
-            // prevent recursion
-            signalStack.push(connectedSignal)
-            lastTick = clock.time
-            // call the actual update function
-            let result = fn()
-            // stop recording dependencies
-            computeStack.pop()
-            // stop the recursion prevention
-            signalStack.pop()
-            if (result instanceof Promise) {
-                result.then((result) => {
+            if (hasChanged) {
+                // remove all dependencies (signals) from previous runs 
+                clearListeners(computeEffect)
+                // record new dependencies on this run
+                computeStack.push(computeEffect)
+                // prevent recursion
+                signalStack.push(connectedSignal)
+                // make sure the clock.time signal is a dependency
+                lastTick = clock.time
+                // call the actual update function
+                let result = fn()
+                // stop recording dependencies
+                computeStack.pop()
+                // stop the recursion prevention
+                signalStack.pop()
+                if (result instanceof Promise) {
+                    result.then((result) => {
+                        connectedSignal.current = result
+                    })
+                } else {
                     connectedSignal.current = result
-                })
-            } else {
-                connectedSignal.current = result
+                }
+                hasChanged = false
             }
+        } else {
+            hasChanged = true
         }
     }
     // run the computEffect immediately upon creation

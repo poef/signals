@@ -8,15 +8,15 @@ import {signal, effect} from '@muze-nl/simplysignal'
 let todos = signal([])
 
 let counter = effect(() => {
-	return {todo: todos.filter(todo => !todo.done).length}
+	return todos.filter(todo => !todo.done).length
 })
 
 todos.push({title: "Buy milk", done: false})
 
-console.log(counter.todo) // prints 1
+console.log(counter.current) // prints 1
 ```
 
-If you haven't seen reactive code before, it works very similar to how a spreadsheet updates cells with a formula inside. Whenever you change a number, the affected formulas re-calculate their values automatically. In the same way, whenever you change a Signals value, affected Effects are re-run and update their result Signal.
+If you haven't seen reactive code before, it works very similar to how a spreadsheet updates cells with a formula inside. Whenever you change a number, the affected formulas re-calculate their values automatically. In the same way, whenever you change a Signal value, affected Effects are re-run and update their result Signal.
 
 The two core concepts are Signals and Effects.
 
@@ -44,12 +44,12 @@ import {signal, effect} from '@muze-nl/simplysignal'
 let todos = signal([])
 
 let counter = effect(() => {
-	return {todo: todos.filter(todo => !todo.done).length}
+	return todos.filter(todo => !todo.done).length
 })
 
 todos.push({title: "Buy milk", done: false})
 
-console.log(counter.todo) // prints 1
+console.log(counter.current) // prints 1
 ```
 
 In this case the effect returns something, an object. That is automatically turned into a Signal. You don't have to return anything in an effect, but if you do, it must be an object (or an array). Doing this means that you can use the result of the effect as a dependency in another effect.

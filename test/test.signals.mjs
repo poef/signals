@@ -262,14 +262,21 @@ tap.test('throttledEffect', t => {
 	let bar = throttledEffect(() => {
 		return foo.value+':'+count++
 	}, 10)
+	// throttled effect is called immediately
+	t.same(bar.current, '1:0')
 	for (let i=0;i<10;i++) {
 		setTimeout(() => {
 			foo.value++
 		},1)
 	}
 	setTimeout(() => {
+		// throttled effect called only once in each 10ms
 		t.same(bar.current, '11:1')
-		t.end()
+		setTimeout(() => {
+			// make sure that throttle end timeout is only called if foo.value has changed in the mean time
+			t.same(bar.current, '11:1') 
+			t.end()
+		}, 20)
 	}, 20)
 })
 
@@ -285,9 +292,11 @@ tap.test('clockEffect', t => {
 	t.same(bar.current, '1:0')
 	foo.value = 2
 	foo.value = 3
-	t.same(bar.current, '1:0')
+	t.same(bar.current, '1:0') // only recompute if the clock has progressed
 	clock.time += 1
-	t.same(bar.current, '3:1')
+	t.same(bar.current, '3:1') // so here
+	clock.time += 1
+	t.same(bar.current, '3:1') // and only recompute if foo.value has changed too
 	t.end()
 	
 })
