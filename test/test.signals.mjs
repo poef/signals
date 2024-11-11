@@ -1,4 +1,4 @@
-import { signal, effect } from '../src/signals.mjs'
+import { signal, effect, batch } from '../src/signals.mjs'
 import tap from 'tap'
 
 tap.test('objects', t => {
@@ -211,5 +211,20 @@ tap.test('Custom class', t => {
 	t.same(bar.current, '"bar"')
 	foo.bar = 'baz'
 	t.same(bar.current, '"baz"')
+	t.end()
+})
+
+tap.test('batch mode', t => {
+	let foo = signal({value: 'Foo'})
+	let bar = effect(() => {
+		return '"'+foo.value+'"'
+	})
+	batch(() => {
+		foo.value = 'Bar'
+		t.same(bar.current, '"Foo"')
+		foo.value = 'Baz'
+		t.same(bar.current, '"Foo"')
+	})
+	t.same(bar.current, '"Baz"')
 	t.end()
 })

@@ -88,6 +88,8 @@ export function signal(v) {
     return signals.get(v)
 }
 
+let batchedListeners = new Set()
+let batchMode = 0
 /**
  * Called when a signal changes a property (set/delete)
  * Triggers any reactor function that depends on this signal
@@ -106,7 +108,9 @@ function notifySet(self, properties, isdelete=false) {
     })
     listeners = new Set(listeners.filter(Boolean))
     if (listeners) {
-        for (let listener of Array.from(listeners)) {
+        if (batchMode) {
+            batchedListeners = batchedListeners.union(listeners)
+        } else for (let listener of Array.from(listeners)) {
             listener()
         }
     }
@@ -252,4 +256,30 @@ export function effect(fn) {
     // run the computEffect immediately upon creation
     computeEffect()
     return connectedSignal
+}
+
+export function batch(fn) {
+    batchMode++
+    let result = fn()
+    if (result instanceof Promise) {
+        result.then(() => {
+            batchMode--
+            if (!batchMode) {
+                runBatchedListeners()
+            }
+        })
+    } else {
+        batchMode--
+        if (!batchMode) {
+            runBatchedListeners()
+        }
+    }
+}
+
+function runBatchedListeners() {
+    let copyBatchedListeners = Array.from(batchedListeners)
+    batchedListeners = new Set()
+    for (let listener of copyBatchedListeners) {
+        listener()
+    }
 }
