@@ -300,3 +300,23 @@ tap.test('clockEffect', t => {
 	t.end()
 	
 })
+
+tap.test('glitch', t => {
+	let seconds = signal({ value: 0})
+	let q = effect(() => {
+		return seconds.value + 1
+	})
+	let v = effect(() => {
+		return q.current > seconds.value
+	})
+	for (let i=0;i<10;i++) {
+		setTimeout(() => {
+			seconds.value++
+			t.same(q.current, seconds.value+1)
+			t.same(v.current, true)
+		})
+	}
+	setTimeout(() => {
+		t.end()
+	}, 20)
+})
