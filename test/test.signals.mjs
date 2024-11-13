@@ -301,7 +301,7 @@ tap.test('clockEffect', t => {
 	
 })
 
-tap.test('glitch', t => {
+tap.test('glitchfree', t => {
 	let seconds = signal({ value: 0})
 	let q = effect(() => {
 		return seconds.value + 1
