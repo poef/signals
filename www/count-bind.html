@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>data-bind databinding</title>
+<body>
+<h1>data-bind databinding</h1>
+<form>
+<div>
+	<button data-command="decrease">-</button>
+	<input data-bind="count.value" type="number" value="0">
+	<button data-command="increase">+</button>
+</div>
+</form>
+<script type="module">
+	import { signal } from '../src/signals.mjs'
+	import { bind } from '../src/bind.mjs'
+
+	let count = {
+		value: 1
+	}
+
+	let root = signal({
+		count
+	})
+	window.root = root
+	bind(document.body, root)
+
+	document.querySelector('[data-command="decrease"]')
+		.addEventListener('click', (evt) =>{
+			root.count.value--
+			evt.preventDefault()
+		})
+
+	document.querySelector('[data-command="increase"]')
+		.addEventListener('click', (evt) => {
+			root.count.value++
+			evt.preventDefault()
+		})
+
+
+</script>

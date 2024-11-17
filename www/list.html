@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>data-bind list databinding</title>
+<body>
+<h1>data-bind list databinding</h1>
+<ul data-bind="list">
+	<template>
+		<li>
+			<span data-bind="title"></span>
+		</li>
+	</template>
+</ul>
+<script type="module">
+	import { signal } from '../src/signals.mjs'
+	import { bind } from '../src/bind.mjs'
+
+	let root = signal({
+		list: []
+	})
+	window.root = root
+	bind(document.body, root)
+
+	root.list.push({
+		title: 'test'
+	})
+	root.list.push({
+		title: 'count'
+	})
+
+	for (let i=1; i<100; i++) {
+		setTimeout(() => {
+			root.list[1].title = 'count '+i
+		}, i*10)
+	}
+</script>
