@@ -320,3 +320,13 @@ tap.test('glitchfree', t => {
 		t.end()
 	}, 20)
 })
+
+tap.test('array splice', t => {
+	let list = signal([{value: 1},{value: 2}, {value: 3}])
+	let q = effect(() => {
+		return list[1].value
+	})
+	list.splice(1,1)
+	t.same(q.current, 3)
+	t.end()
+})
