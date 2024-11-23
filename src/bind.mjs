@@ -31,8 +31,7 @@ export function bind(container, root) {
 	const applyBindings = (bindings) => {
 		for (let bindingEl of bindings) {
 			let path = getBindingPath(bindingEl)
-			let [model, property] = getByPath(root, path)
-			render(bindingEl, model, property)
+			render(bindingEl, root, path)
 		}
 	}
 
@@ -42,18 +41,16 @@ export function bind(container, root) {
     }
 }
 
-function render(el, model, property) {
+function render(el, root, path) {
 	let template = el.querySelector('template')
-	if (template) {
-		template.remove() // FIXME: should not need to remove template
-	}
 	let length = 0
 	throttledEffect(() => { // FIXME: throttledEffect runs once too much (extra time at the end)
+		let [model, property] = getByPath(root, path) // must be inside effect to keep track of accessed signals
 		const value = model?.[property]
 		if (Array.isArray(value) && template) {
 			if (length > value.length) {
 				while (length > value.length) {
-					let child = el.querySelector(':nth-child('+length+')') // FIXME: don't count template as a child here
+					let child = el.querySelector(':scope > :nth-child('+(length+1)+')')
 					child.remove()
 					length--
 				}
