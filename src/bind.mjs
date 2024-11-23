@@ -45,8 +45,7 @@ function render(el, root, path) {
 	let template = el.querySelector('template')
 	let length = 0
 	throttledEffect(() => { // FIXME: throttledEffect runs once too much (extra time at the end)
-		let [model, property] = getByPath(root, path) // must be inside effect to keep track of accessed signals
-		const value = model?.[property]
+		const value = getValueByPath(root, path)
 		if (Array.isArray(value) && template) {
 			if (length > value.length) {
 				while (length > value.length) {
@@ -62,7 +61,34 @@ function render(el, root, path) {
 			}
 			length = value.length
 		} else if (el.tagName=='INPUT') {
+			if (el.type=='checkbox' || el.type=='radio') {
+				if (el.value == value) {
+					el.checked = true
+				} else {
+					el.checked = false
+				}
+			} else {
+				el.value = value
+			}
+		} else if (el.tagName=='BUTTON') {
 			el.value = value
+		} else if (el.tagName=='SELECT') {
+			if (el.multiple) {
+				if (Array.isArray(value)) {
+					for (let option of el.options) {
+						if (value.indexOf(option.value)===false) {
+							option.selected = false
+						} else {
+							option.selected = true
+						}
+					}
+				}
+			} else {
+				let option = el.options.find(o => o.value==value)
+				if (option) {
+					option.selected = true
+				}
+			}
 		} else {
 			el.innerHTML = value
 		}
@@ -71,20 +97,33 @@ function render(el, root, path) {
 
 function applyTemplate(el, template, list, index) {
 	let clone = template.content.cloneNode(true)
+	if (clone.children.length>1) {
+		throw new Error('template must contain a single root node', { cause: template })
+	}
 	const bindings = clone.querySelectorAll('[data-bind]')
 	for (let binding of bindings) {
 		binding.dataset.bind = el.dataset.bind+'.'+index+'.'+binding.dataset.bind
 	}
+	clone.children[0].setAttribute('data-bind-key',index)
 	el.appendChild(clone)
 }
 
-function getByPath(root, path) {
-    var parts = path.split('.');
-    var curr = root;
-    while (parts.length>1 && curr) {
-        curr = curr[parts.shift()];
+function getValueByPath(root, path) {
+    let parts = path.split('.');
+    let curr = root;
+    let part, prevPart;
+    while (parts.length && curr) {
+    	part = parts.shift()
+    	if (part=='#key') {
+    		return prevPart
+    	} else if (part=='#value') {
+    		return curr
+    	} else {
+	        curr = curr[part];
+    	    prevPart = part
+    	}
     }
-    return [curr, parts.pop()];
+    return curr
 }
 
 function getBindingPath(el) {
