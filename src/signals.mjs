@@ -1,5 +1,9 @@
+const source = Symbol('source')
 const signalHandler = {
     get: (target, property, receiver) => {
+        if (property===source) {
+            return target // don't notifyGet here, this is only called by set
+        }
         const value = target?.[property] // Reflect.get fails on a Set.
         notifyGet(receiver, property)
         if (typeof value === 'function') {
@@ -46,8 +50,9 @@ const signalHandler = {
         return value
     },
     set: (target, property, value, receiver) => {
+        value = value?.[source] || value // unwraps signal
         if (target[property]!==value) {
-            target[property] = value //FIXME: should we unwrap a signal here?
+            target[property] = value
             notifySet(receiver, property)
         }
         return true
