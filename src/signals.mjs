@@ -240,9 +240,9 @@ export function effect(fn) {
     // this is the function that is called automatically
     // whenever a signal dependency changes
     const computeEffect = function computeEffect() {
-    	if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
-    		throw new Error('Cyclical dependency in update() call', { cause: fn})
-    	}
+        if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
+            throw new Error('Cyclical dependency in update() call', { cause: fn})
+        }
         // remove all dependencies (signals) from previous runs 
         clearListeners(computeEffect)
         // record new dependencies on this run
@@ -401,4 +401,9 @@ export function clockEffect(fn, clock) {
     // run the computEffect immediately upon creation
     computeEffect()
     return connectedSignal
+}
+
+function memo(fn) {
+    // return the last computed value from fn(), unless dependencies have changed
+    // or should you just use effect() and use the connectedSignal, since that automatically gets updated if dependencies change?
 }
