@@ -40,8 +40,7 @@ export function bind(options)
 
     const applyBindings = (bindings) => {
         for (let bindingEl of bindings) {
-            let path = getBindingPath(bindingEl)
-            render(bindingEl, options.root, path)
+            render(bindingEl, options.root)
         }
     }
 
@@ -58,10 +57,11 @@ export function bind(options)
         return clone
     }
 
-    const render = (el, root, path) => {
+    const render = (el, root) => {
         let template = el.querySelector('template')
         let length = 0
         throttledEffect(() => { // FIXME: throttledEffect runs once too much (extra time at the end)
+			const path = getBindingPath(el)
             const value = getValueByPath(root, path)
             if (Array.isArray(value) && template) {
                 let items = el.querySelectorAll(':scope > [data-bind-key]')
