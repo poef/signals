@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="styles.css">
+        <title data-bind="meta title">Kanban</title>
+        <style>
+            .kanban-lists {
+                display: contents;
+            }
+            .ds-dropdown-icon {
+                vertical-align: middle;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <div class="kanban-main ds-space">
+                <div class="kanban-lists" data-bind="columns">
+                    <template>
+                        <div class="kanban-list ds-box">
+                            <header class="kanban-head">
+                                <label class="ds-align-right ds-dropdown">
+                                    <svg class="ds-dropdown-icon ds-icon ds-icon-feather">
+                                        <use xlink:href="feather-sprite.svg#chevron-down"></use>
+                                    </svg>
+                                    <input type="checkbox" class="ds-dropdown-state">
+                                    <nav class="ds-dropdown-nav">
+                                        <ul class="ds-dropdown-list">
+                                            <li class="ds-dropdown-item">Option 1</li>
+                                            <li class="ds-dropdown-item">Option 2</li>
+                                            <li class="ds-dropdown-item">Option 3</li>
+                                            <li class="ds-dropdown-item">Option 4</li>
+                                        </ul>
+                                    </nav>
+                                </label>
+                                <label class="kanban-list-label">
+                                    <span class="kanban-input" data-bind="label"></span>
+                                </label>
+                            </header>
+                            <ul class="kanban-cards" data-bind="cards">
+                                <template>
+                                    <li class="kanban-card">
+                                        <div class="kanban-input kanban-description" data-bind="description" contentEditable></div>
+                                    </li>
+                                </template>
+                            </ul>
+                            <footer class="kanban-foot">
+                                <button class="kanban-button" data-simply-command="addCard">
+                                    <svg class="ds-icon ds-icon-feather">
+                                        <use xlink:href="feather-sprite.svg#plus"></use>
+                                    </svg>
+                                    Add a card
+                                </button>
+                            </footer>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </main>
+    
+        <script src="https://cdn.jsdelivr.net/gh/simplyedit/simplyview/dist/simply.everything.js"></script>
+        <script type="module">
+            import {signal, effect, throttledEffect, batch} from '../../src/signals.mjs'
+            import {bind} from '../../src/bind.mjs'
+            import Sortable from 'https://cdn.jsdelivr.net/npm/sortablejs@1.15.4/modular/sortable.core.esm.js'
+
+            window.kanban = simply.app({
+                commands: {
+                    addCard: function(el, value) {
+                        let listEl = el.closest('.kanban-list');
+                        let cardsEl = listEl.closest('[data-bind-key]');
+                        let list = kanban.view.columns[cardsEl.dataset.bindKey].cards
+                        list.push({
+                            description: 'New Card'
+                        });
+                    }
+                },
+                view: signal((function() {
+                    let data = localStorage.getItem('simplyKanban') || '[]'
+                    let columns = JSON.parse(data)
+                    if (!columns.length) {
+                        columns = [
+                            {
+                                label: 'Backlog',
+                                cards: []
+                            },
+                            {
+                                label: 'Todo',
+                                cards: []
+                            },
+                            {
+                                label: 'Doing',
+                                cards: []
+                            },
+                            {
+                                label: 'Review',
+                                cards: []
+                            },
+                            {
+                                label: 'Done',
+                                cards: []
+                            }
+                        ]
+                    }
+                    return {
+                        columns
+                    }
+                })())
+            })
+
+            // initialize data-bind rendering
+            bind({root:kanban.view})
+
+            kanban.view.columns.forEach((column,index) => {
+                const columnEl = document.querySelector('.kanban-list[data-bind-key="'+index+'"] .kanban-cards')
+                const sortable = new Sortable(columnEl, {
+                    group: 'kanban',
+                    onEnd: (evt) => {
+                        batch(() => {
+                            const fromColumnIndex = evt.from.closest('.kanban-list').dataset.bindKey
+                            const fromCardIndex = evt.item.dataset.bindKey
+                            const toColumnIndex = evt.to.closest('.kanban-list').dataset.bindKey
+                            const card = kanban.view.columns[fromColumnIndex].cards.splice(fromCardIndex, 1)
+                            kanban.view.columns[toColumnIndex].cards.splice(evt.newDraggableIndex, 0, card[0])
+                        })
+                        return true
+                    }
+                })
+            })
+
+            document.body.addEventListener('input', (evt) => {
+                if (evt.target.contentEditable) {
+                    const columnIndex = evt.target.closest('.kanban-list')?.dataset.bindKey
+                    const cardIndex = evt.target.closest('.kanban-card')?.dataset.bindKey
+                    if (columnIndex!=null && cardIndex!=null) {
+                        kanban.view.columns[columnIndex].cards[cardIndex].description = evt.target.innerHTML
+                    }
+                }
+            })
+
+            // store changes
+            throttledEffect(() => {
+                localStorage.setItem('simplyKanban', JSON.stringify(kanban.view.columns))
+            },100)
+        </script>
+    </body>
+</html>
