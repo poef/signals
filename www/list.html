@@ -9,6 +9,15 @@
 			<span data-bind="title"></span>
 		</li>
 	</template>
+	<li data-bind-key="0">
+		<span data-bind="list.0.title">foo</span>
+	</li>
+	<li data-bind-key="1">
+		<span data-bind="list.1.title">foo</span>
+	</li>
+	<li data-bind-key="2">
+		<span data-bind="list.2.title">foo</span>
+	</li>
 </ul>
 <script type="module">
 	import { signal } from '../src/signals.mjs'
@@ -18,7 +27,6 @@
 		list: []
 	})
 	window.root = root
-	bind({ root })
 
 	root.list.push({
 		title: 'test'
@@ -26,6 +34,8 @@
 	root.list.push({
 		title: 'count'
 	})
+
+	bind({ root })
 
 	for (let i=1; i<100; i++) {
 		setTimeout(() => {
