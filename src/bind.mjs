@@ -51,7 +51,11 @@ export function bind(options)
         }
         const bindings = clone.querySelectorAll('['+options.attribute+']')
         for (let binding of bindings) {
-            binding.dataset.bind = path+'.'+index+'.'+binding.dataset.bind
+            if (binding.dataset.bind.substring(0, '#root.'.length)=='#root.') {
+                binding.dataset.bind = binding.dataset.bind.substring('#root.'.length)
+            } else {
+                binding.dataset.bind = path+'.'+index+'.'+binding.dataset.bind
+            }
         }
         clone.children[0].setAttribute(options.attribute+'-key',index)
         return clone
@@ -59,14 +63,18 @@ export function bind(options)
 
     const render = (el, root) => {
         let template = el.querySelector('template')
-        let length = 0
         throttledEffect(() => { // FIXME: throttledEffect runs once too much (extra time at the end)
 			const path = getBindingPath(el)
             const value = getValueByPath(root, path)
+            // TODO: add support for object as value, both with/without toString methods
+            // should allow to iterate over object entries and render them with a template
+            // TODO: support multiple templates and a way to select the correct one per entry
             if (Array.isArray(value) && template) {
                 let items = el.querySelectorAll(':scope > [data-bind-key]')
                 // do single merge strategy for now, in future calculate optimal merge strategy from a number
                 // now just do a delete if a key <= last key, insert if a key >= last key
+                // FIXME: there are still situations where dom data-binding is not correctly fixed after a dom change
+                // see the kanban demo
                 let lastKey = 0
                 for (let item of items) {
                     if (item.dataset.bindKey>lastKey) {
@@ -133,6 +141,13 @@ export function bind(options)
                         option.selected = true
                     }
                 }
+            } else if (el.tagName=='A') {
+                if (value?.innerHTML && el.innerHTML!=''+value.innerHTML) {
+                    el.innerHTML = ''+value.innerHTML
+                }
+                if (value?.href && el.href != ''+value.href) {
+                    el.href = ''+value.href
+                }
             } else {
                 if (el.innerHTML != ''+value) {
                     el.innerHTML = ''+value
@@ -163,6 +178,8 @@ function getValueByPath(root, path)
             return prevPart
         } else if (part=='#value') {
             return curr
+        } else if (part=='#root') {
+            curr = root
         } else {
             curr = curr[part];
             prevPart = part
