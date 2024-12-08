@@ -348,11 +348,6 @@ export function throttledEffect(fn, throttleTime) {
 }
 
 export function clockEffect(fn, clock) {
-    if (effectStack.findIndex(f => fn==f)!==-1) {
-        throw new Error('Recursive update() call', {cause:fn})
-    }
-    effectStack.push(fn)
-
     let connectedSignal = signals.get(fn)
     if (!connectedSignal) {
         connectedSignal = signal({
@@ -366,25 +361,18 @@ export function clockEffect(fn, clock) {
     // this is the function that is called automatically
     // whenever a signal dependency changes
     const computeEffect = function computeEffect() {
-        if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
-            throw new Error('Cyclical dependency in update() call', { cause: fn})
-        }
         if (lastTick < clock.time) {
             if (hasChanged) {
                 // remove all dependencies (signals) from previous runs 
                 clearListeners(computeEffect)
                 // record new dependencies on this run
                 computeStack.push(computeEffect)
-                // prevent recursion
-                signalStack.push(connectedSignal)
                 // make sure the clock.time signal is a dependency
                 lastTick = clock.time
                 // call the actual update function
                 let result = fn()
                 // stop recording dependencies
                 computeStack.pop()
-                // stop the recursion prevention
-                signalStack.pop()
                 if (result instanceof Promise) {
                     result.then((result) => {
                         connectedSignal.current = result
@@ -393,6 +381,8 @@ export function clockEffect(fn, clock) {
                     connectedSignal.current = result
                 }
                 hasChanged = false
+            } else {
+                lastTick = clock.time
             }
         } else {
             hasChanged = true
