@@ -26,16 +26,21 @@
 
 	const boardEl = document.getElementById('board')
 	const boardSize = [10,10]
-	const clock = signal({
+	const calcClock = signal({
 		time: 0
 	})
-	const board = new Board(boardSize, clock)
+	const renderClock = signal({
+		time: 0
+	})
+	const board = new Board(boardSize, renderClock, calcClock)
 	boardEl.appendChild(board.render())
 	window.board = board
-
+	window.calcClock = calcClock
+	window.renderClock = renderClock
 	document.querySelectorAll('[data-command="increase"]').forEach(el => {
 		el.addEventListener('click', (evt) => {
-			clock.time++
+			calcClock.time++
+			renderClock.time++
 			evt.preventDefault()
 		})
 	})

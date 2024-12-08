@@ -1,30 +1,30 @@
 import {signal, batch, effect, clockEffect } from '../src/signals.mjs'
 
 export class Cell {
-	constructor(alive, clock) {
+	constructor(alive, renderClock, calcClock, x, y) {
 		this.state = signal({
 			alive: !!alive,
 			neighbours: []
 		})
-		this.clock = clock
+		this.x = x
+		this.y = y
 		clockEffect(() => {
+			console.log('recalculate',x,y,this.state.alive,this.state.next)
 			let neighbourCount = this.state.neighbours
-				.filter(nb => nb.state.alive || nb.state.manual)
+				.filter(nb => nb.state.alive)
 				.length
-			if (this.state.manual || this.state.alive) {
+			if (this.state.alive) {
 				this.state.next = neighbourCount == 2 || neighbourCount == 3
 			} else {
 				this.state.next = neighbourCount == 3
 			}
-		}, clock)
+			console.log('result',x,y,this.state.alive,this.state.next)
+		}, calcClock)
 		clockEffect(() => {
-			let next = this.state.next
-			let manual = this.state.manual
-			this.state.alive = typeof manual != 'undefined' ? manual : next
-			window.setTimeout(() => {
-				delete this.state.manual // in a timeout, so that a change is registered for the next clock tick
-			}, 10);
-		}, clock)
+			console.log('render',x,y,this.state.alive,this.state.next)
+			this.state.alive = this.state.next
+			console.log('render result',x,y,this.state.alive,this.state.next)
+		}, renderClock)
 	}
 	
 	setNeighbours(neighbours) {
@@ -36,7 +36,7 @@ export class Cell {
 		let checkbox = document.createElement('input')
 		checkbox.type = 'checkbox'
 		checkbox.addEventListener('click', evt => {
-			this.state.manual = !!checkbox.checked
+			this.state.alive = !!checkbox.checked
 		})
 		td.appendChild(checkbox)
 		checkbox.dataset.x=x
@@ -49,10 +49,7 @@ export class Cell {
 			let td = checkbox.closest('td')
 			td.classList.remove('willLive')
 			td.classList.remove('willDie')
-			td.classList.remove('manual')
-			if (this.state.manual) {
-				td.classList.add('manual')
-			} else if (this.state.next) {
+			if (this.state.next) {
 				td.classList.add('willLive')
 			} else if (this.state.alive) {
 				td.classList.add('willDie')
@@ -63,14 +60,13 @@ export class Cell {
 }
 
 export class Board {
-	constructor(boardSize, clock) {
-		this.clock = clock
+	constructor(boardSize, renderClock, calcClock) {
 		this.size = boardSize
 		this.rows = []
 		for (let y=0; y<this.size[1]; y++) {
 			let row = []
 			for (let x=0; x<this.size[0]; x++) {
-				row[x] = new Cell(false, clock)
+				row[x] = new Cell(false, renderClock, calcClock, x, y)
 			}
 			this.rows[y] = row
 		}
