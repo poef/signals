@@ -1,6 +1,34 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>viewmodel</title>
+<style>
+	html,body {
+		height: 100vh;
+		overflow: hidden;
+		padding:0;
+		margin:0;
+		border:0;		
+	}
+	body {
+		display: grid;
+		grid-template: "left right";
+	}
+	main {
+		grid-area: left;
+		padding: 1em;
+	}
+	.source {
+		grid-area: right;
+		display: block;
+		font-family: monospace;
+		white-space: pre;
+		height: 100vh;
+		overflow: auto;
+		background-color: #0F0F0F;
+		color: #FEFEFE;
+	}
+</style>
+<main>
 <h1>Viewmodel</h1>
 <ul data-bind="numbers.view.current">
 	<template>
@@ -11,7 +39,8 @@
 <span data-bind="numbers.state.options.page"></span>
 <button data-command="pageNext">next</button>
 <button data-command="toggleSort">sort</button>
-<script type="module">
+</main>
+<script class="source" type="module">
 	import {signal, effect} from '../src/signals.mjs'
 	import {bind} from '../src/bind.mjs'
 	import {Model} from '../src/model.mjs'
@@ -29,7 +58,7 @@
 	})
 
 	// adds a sort effect, this must come before
-	// the pagina effect, since the content of each
+	// the paging effect, since the content of each
 	// page depends on the sort order of the entire list
 	numbersModel.addEffect(function(data) {
 		// initialize the sort options, only gets called once
@@ -37,6 +66,7 @@
 		// then return the effect, which is called when
 		// either the data or the sort options change
 		return effect(() => {
+			console.log('sorting')
 			if (this.state.options.sortDirection=='desc') {
 				return data.current.toSorted((a,b) => b - a)
 			} else {
@@ -55,6 +85,7 @@
 		// and if sort order changes, then the input data signal
 		// changes, so this is called immediately after
 		return effect(() => {
+			console.log('paging')
 			const page = this.state.options.page
 			const pageSize = this.state.options.pageSize
 			const start = page * pageSize
@@ -63,6 +94,7 @@
 		})
 	})
 
+	// set up databinding to render the numbers list
 	bind({
 		container: document.body,
 		root: {
@@ -70,6 +102,7 @@
 		}
 	})
 
+	// tie functions to handle the button clicks
 	document.querySelector('[data-command="pagePrev"]').addEventListener('click', (evt) => {
 		evt.preventDefault()
 		const page = numbersModel.state.options.page
@@ -92,5 +125,8 @@
 				numbersModel.state.options.sortDirection = 'asc'
 			}
 	})
+
+	// make the numbersModel available in the console
 	window.numbersModel = numbersModel
+	
 </script>
