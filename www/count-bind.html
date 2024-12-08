@@ -22,7 +22,10 @@
 		count
 	})
 	window.root = root
-	bind(document.body, root)
+	bind({
+		container: document.body, 
+		root
+	})
 
 	document.querySelector('[data-command="decrease"]')
 		.addEventListener('click', (evt) =>{
