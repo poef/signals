@@ -1,0 +1,82 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>viewmodel</title>
+<h1>Viewmodel</h1>
+<ul data-bind="numbers.view.current">
+	<template>
+		<li data-bind="#value"></li>
+	</template>
+</ul>
+<button data-command="pagePrev">previous</button>
+<span data-bind="numbers.state.options.page"></span>
+<button data-command="pageNext">next</button>
+<button data-command="toggleSort">sort</button>
+<script type="module">
+	import {signal, effect} from '../src/signals.mjs'
+	import {bind} from '../src/bind.mjs'
+	import {Model} from '../src/model.mjs'
+	
+	const data = []
+	for (let i=0; i<110; i++) {
+		data.push(Math.floor(Math.random()*1000))
+	}
+
+	const numbersModel = new Model({
+		data,
+		options: {}
+	})
+
+	numbersModel.addEffect(function(data) {
+		this.state.options.sortDirection = 'asc'
+		return effect(() => {
+			if (this.state.options.sortDirection=='desc') {
+				return data.current.toSorted((a,b) => b - a)
+			} else {
+				return data.current.toSorted((a,b) => a - b)
+			}
+		})
+	})
+
+	numbersModel.addEffect(function(data) {
+		this.state.options.page = 0
+		this.state.options.pageSize = 20
+		return effect(() => {
+			const page = this.state.options.page
+			const pageSize = this.state.options.pageSize
+			const start = page * pageSize
+			const end = start + pageSize
+			return data.current.slice(start, end)
+		})
+	})
+
+	bind({
+		container: document.body,
+		root: {
+			numbers: numbersModel
+		}
+	})
+
+	document.querySelector('[data-command="pagePrev"]').addEventListener('click', (evt) => {
+		evt.preventDefault()
+		const page = numbersModel.state.options.page
+		numbersModel.state.options.page = Math.max(0, page-1)
+	})
+
+	document.querySelector('[data-command="pageNext"]').addEventListener('click', (evt) => {
+		evt.preventDefault()
+		const pageSize = numbersModel.state.options.pageSize
+		const page = numbersModel.state.options.page
+		const max = Math.floor((numbersModel.state.data.length-1) / pageSize)
+		numbersModel.state.options.page = Math.min(max, page+1)
+	})
+
+	document.querySelector('[data-command="toggleSort"]').addEventListener('click', (evt) => {
+			const dir = numbersModel.state.options.sortDirection
+			if (dir=='asc') {
+				numbersModel.state.options.sortDirection = 'desc'
+			} else {
+				numbersModel.state.options.sortDirection = 'asc'
+			}
+	})
+	window.numbersModel = numbersModel
+</script>
