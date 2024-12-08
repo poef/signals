@@ -16,18 +16,26 @@
 	import {bind} from '../src/bind.mjs'
 	import {Model} from '../src/model.mjs'
 	
+	// generate a random list of numbers
 	const data = []
 	for (let i=0; i<110; i++) {
 		data.push(Math.floor(Math.random()*1000))
 	}
 
+	// create a new Model from it
 	const numbersModel = new Model({
 		data,
 		options: {}
 	})
 
+	// adds a sort effect, this must come before
+	// the pagina effect, since the content of each
+	// page depends on the sort order of the entire list
 	numbersModel.addEffect(function(data) {
+		// initialize the sort options, only gets called once
 		this.state.options.sortDirection = 'asc'
+		// then return the effect, which is called when
+		// either the data or the sort options change
 		return effect(() => {
 			if (this.state.options.sortDirection=='desc') {
 				return data.current.toSorted((a,b) => b - a)
@@ -37,9 +45,15 @@
 		})
 	})
 
+	// adds a paging effect
 	numbersModel.addEffect(function(data) {
+		// initialize the paging options
 		this.state.options.page = 0
 		this.state.options.pageSize = 20
+		// then return the effect, which is called
+		// whenever the data of the paging options change
+		// and if sort order changes, then the input data signal
+		// changes, so this is called immediately after
 		return effect(() => {
 			const page = this.state.options.page
 			const pageSize = this.state.options.pageSize
