@@ -16,7 +16,10 @@ export function bind(options)
             if (change.type=="childList" && change.addedNodes) {
                 for (let node of change.addedNodes) {
                     if (node instanceof HTMLElement) {
-                        let bindings = node.querySelectorAll('[data-bind]')
+                        let bindings = Array.from(node.querySelectorAll('[data-bind]'))
+                        if (node.matches('[data-bind')) {
+                            bindings.unshift(node)
+                        }
                         if (bindings.length) {
                             applyBindings(bindings)
                         }
