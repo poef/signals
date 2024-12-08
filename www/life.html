@@ -1,13 +1,60 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Game of life</title>
+<style>
+	#board input[type="checkbox"] {
+		appearance: none;
+		width: 100%;
+		aspect-ratio: 1;
+		display: block;
+		margin: 0;
+	}
+	#board input[type="checkbox"]:checked {
+		background-color: black;
+	}
+	#board table {
+		border-collapse: collapse;
+		table-layout: fixed;
+		width: 50vw;
+		height: 50vw;
+	}
+	#board td {
+		border: 1px solid #999;
+		aspect-ratio: 1;
+		position: relative;
+		padding: 0;
+	}
+	body {
+		display: grid;
+		grid-template: "left right";
+		height: 100vh;
+		overflow: hidden;
+	}
+	main {
+		grid-area: left;
+		padding: 1em;
+	}
+	.source {
+		grid-area: right;
+		display: block;
+		font-family: monospace;
+		white-space: pre;
+		height: 100%;
+		overflow: auto;
+		background-color: #0F0F0F;
+		color: #FEFEFE;
+	}
+</style>
 <body>
+
+<main>
 <h1>Game of life</h1>
 <div id="board"></div>
 <form>
 	<button data-command="increase">+</button>
 </form>
-<script type="module">
+</main>
+<script class="source" type="module" contentEditable>
 	import {signal, effect, clockEffect } from '../src/signals.mjs'
 
 	// this class represents a single cell in a game of life matrix
@@ -145,10 +192,9 @@
 	const renderClock = signal({
 		time: 0
 	})
-
 	// initialize the board
 	const boardEl = document.getElementById('board')
-	const boardSize = [10,10]
+	const boardSize = [50,50]
 	const board = new Board(boardSize, renderClock, calcClock)
 	boardEl.appendChild(board.render())
 
