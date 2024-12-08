@@ -1,124 +1,42 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Game of life</title>
+<style>
+	.manual {
+		background-color: lightblue;
+	}
+	.willLive {
+		background-color: green;
+	}
+	.willDie {
+		background-color: black;
+	}
+</style>
 <body>
 <h1>Game of life</h1>
-<div data-bind="previousBoard"></div>
-<hr>
-<div data-bind="currentBoard"></div>
+<div id="board"></div>
 <form>
 <div>
 	<button data-command="increase">+</button>
 </div>
 </form>
 <script type="module">
-	import { signal, effect, clockEffect } from '../src/signals.mjs'
+	import { signal } from '../src/signals.mjs'
+	import { Cell, Board } from './life.js'
 
-	let clock = signal({
+	const boardEl = document.getElementById('board')
+	const boardSize = [10,10]
+	const clock = signal({
 		time: 0
 	})
+	const board = new Board(boardSize, clock)
+	boardEl.appendChild(board.render())
+	window.board = board
 
-	const size=5
-	const boardEl = document.querySelector('[data-bind="currentBoard"]')	
-	const previousBoardEl = document.querySelector('[data-bind="previousBoard"]')
-
-	document.querySelector('[data-command="increase"]')
-		.addEventListener('click', (evt) => {
+	document.querySelectorAll('[data-command="increase"]').forEach(el => {
+		el.addEventListener('click', (evt) => {
 			clock.time++
 			evt.preventDefault()
 		})
-
-	let previousBoard = null
-	let currentBoard = signal(makeBoard(size))
-	previousBoard = signal(deepClone(currentBoard))
-
-	clockEffect(() => {
-		for (let y=0; y<size; y++) {
-			for (let x=0; x<size; x++) {
-				previousBoard[y][x].current = currentBoard[y][x].current
-			}
-		}
-	}, clock)
-
-	function makeBoard(size) {
-		let board = []
-		for (let y=0; y<size; y++) {
-			board[y] = []
-			for (let x=0; x<size; x++) {
-				board[y][x] = clockEffect(() => {
-					let liveCells = countLiveCells(previousBoard,x,y)
-					if (liveCells < 2) {
-						return 0
-					}
-					if (liveCells>3) {
-						return 0
-					}
-					if (liveCells==3) {
-						return 1
-					}
-					return previousBoard?.[y]?.[x]?.current ?? 0
-				}, clock)
-			}
-		}
-		return board
-	}
-
-	function countLiveCells(board, x, y) {
-		let count = 0;
-		for (let cy=y-1;cy<y+1;cy++) {
-			if (cy<0 || cy>=size) {
-				continue
-			}
-			for (let cx=x-1; cx<x+1; cx++) {
-				if (cx<0 || cx>=size) {
-					continue
-				}
-				if (cx==x && cy==y) {
-					continue;
-				}
-				count += board?.[y-1]?.[x-1]?.current
-			}
-		}
-		return count
-	}
-
-
-	function deepClone(b) {
-		return JSON.parse(JSON.stringify(b))
-	}
-
-	let now = clock.time
-	effect(() => {
-		if (clock.time>now) {
-			renderBoard(currentBoard, boardEl)
-			renderBoard(previousBoard, previousBoardEl)
-		}
-		now = clock.time
-	});
-
-	function renderBoard(board, el) {
-		let cell = `<td><input type="checkbox" value="1"></td>`
-		let html = '<table><tbody>'
-		for (let y=0; y<size; y++) {
-			html += '<tr>'
-			let row = board?.[y]
-			for (let x=0; x<size; x++) {
-				let checked = board?.[y]?.[x]?.current ? 'checked' : ''
-				html+=`<td><input type="checkbox" name="board[${y}][${x}]" value="1" ${checked}></td>`
-			}
-			html+=`</tr>\n`
-		}
-		html += '</tbody></table>'
-		boardEl.innerHTML = html
-	}
-
-	boardEl.addEventListener('change', (evt) => {
-		let input = evt.target
-		if (evt.target.type=='checkbox') {
-			let name = evt.target.name
-			let y = parseInt(name.substring(name.indexOf('[')+1))
-			let x = parseInt(name.substring(name.indexOf(']')+2))
-			currentBoard[y][x].current = evt.target.checked ? 1 : 0
-		} 
 	})
 </script>
