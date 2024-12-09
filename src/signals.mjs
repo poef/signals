@@ -115,8 +115,13 @@ function notifySet(self, properties, isdelete=false) {
     if (listeners) {
         if (batchMode) {
             batchedListeners = batchedListeners.union(listeners)
-        } else for (let listener of Array.from(listeners)) {
-            listener()
+        } else {
+            const currentEffect = computeStack[computeStack.length-1]
+            for (let listener of Array.from(listeners)) {
+                if (listener!=currentEffect) {
+                    listener()
+                }
+            }
         }
     }
 }
@@ -250,17 +255,21 @@ export function effect(fn) {
         // prevent recursion
         signalStack.push(connectedSignal)
         // call the actual update function
-        let result = fn()
-        // stop recording dependencies
-        computeStack.pop()
-        // stop the recursion prevention
-        signalStack.pop()
-        if (result instanceof Promise) {
-            result.then((result) => {
+        let result
+        try {
+            result = fn()
+        } finally {
+            // stop recording dependencies
+            computeStack.pop()
+            // stop the recursion prevention
+            signalStack.pop()
+            if (result instanceof Promise) {
+                result.then((result) => {
+                    connectedSignal.current = result
+                })
+            } else {
                 connectedSignal.current = result
-            })
-        } else {
-            connectedSignal.current = result
+            }
         }
     }
     // run the computEffect immediately upon creation
@@ -270,18 +279,22 @@ export function effect(fn) {
 
 export function batch(fn) {
     batchMode++
-    let result = fn()
-    if (result instanceof Promise) {
-        result.then(() => {
+    let result
+    try {
+        result = fn()
+    } finally {
+        if (result instanceof Promise) {
+            result.then(() => {
+                batchMode--
+                if (!batchMode) {
+                    runBatchedListeners()
+                }
+            })
+        } else {
             batchMode--
             if (!batchMode) {
                 runBatchedListeners()
             }
-        })
-    } else {
-        batchMode--
-        if (!batchMode) {
-            runBatchedListeners()
         }
     }
 }
@@ -325,21 +338,25 @@ export function throttledEffect(fn, throttleTime) {
         // prevent recursion
         signalStack.push(connectedSignal)
         // call the actual update function
-        let result = fn()
-        // stop recording dependencies
-        computeStack.pop()
-        // stop the recursion prevention
-        signalStack.pop()
-        if (result instanceof Promise) {
-            result.then((result) => {
+        let result
+        try {
+            result = fn()
+        } finally {
+            // stop recording dependencies
+            computeStack.pop()
+            // stop the recursion prevention
+            signalStack.pop()
+            if (result instanceof Promise) {
+                result.then((result) => {
+                    connectedSignal.current = result
+                })
+            } else {
                 connectedSignal.current = result
-            })
-        } else {
-            connectedSignal.current = result
-        }
-        if (!throttled) {
-            throttled = Date.now()+throttleTime
-            globalThis.setTimeout(computeEffect, throttleTime)
+            }
+            if (!throttled) {
+                throttled = Date.now()+throttleTime
+                globalThis.setTimeout(computeEffect, throttleTime)
+            }
         }
     }
     // run the computEffect immediately upon creation
@@ -370,17 +387,21 @@ export function clockEffect(fn, clock) {
                 // make sure the clock.time signal is a dependency
                 lastTick = clock.time
                 // call the actual update function
-                let result = fn()
-                // stop recording dependencies
-                computeStack.pop()
-                if (result instanceof Promise) {
-                    result.then((result) => {
+                let result 
+                try {
+                    result = fn()
+                } finally {
+                    // stop recording dependencies
+                    computeStack.pop()
+                    if (result instanceof Promise) {
+                        result.then((result) => {
+                            connectedSignal.current = result
+                        })
+                    } else {
                         connectedSignal.current = result
-                    })
-                } else {
-                    connectedSignal.current = result
+                    }
+                    hasChanged = false
                 }
-                hasChanged = false
             } else {
                 lastTick = clock.time
             }
@@ -393,7 +414,12 @@ export function clockEffect(fn, clock) {
     return connectedSignal
 }
 
-function memo(fn) {
-    // return the last computed value from fn(), unless dependencies have changed
-    // or should you just use effect() and use the connectedSignal, since that automatically gets updated if dependencies change?
+export function untracked(fn) {
+    const remember = computeStack.slice()
+    computeStack = []
+    try {
+        return fn()
+    } finally {
+        computeStack = remember
+    }
 }

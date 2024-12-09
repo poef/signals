@@ -80,6 +80,12 @@
 		// initialize the paging options
 		this.state.options.page = 0
 		this.state.options.pageSize = 20
+		effect(() => {
+			const page = this.state.options.page
+			const pageSize = this.state.options.pageSize
+			const max = Math.floor((this.state.data.length-1) / pageSize)
+			this.state.options.page = Math.max(0, Math.min(max, page))
+		})
 		// then return the effect, which is called
 		// whenever the data of the paging options change
 		// and if sort order changes, then the input data signal
@@ -105,16 +111,12 @@
 	// tie functions to handle the button clicks
 	document.querySelector('[data-command="pagePrev"]').addEventListener('click', (evt) => {
 		evt.preventDefault()
-		const page = numbersModel.state.options.page
-		numbersModel.state.options.page = Math.max(0, page-1)
+		numbersModel.state.options.page--
 	})
 
 	document.querySelector('[data-command="pageNext"]').addEventListener('click', (evt) => {
 		evt.preventDefault()
-		const pageSize = numbersModel.state.options.pageSize
-		const page = numbersModel.state.options.page
-		const max = Math.floor((numbersModel.state.data.length-1) / pageSize)
-		numbersModel.state.options.page = Math.min(max, page+1)
+		numbersModel.state.options.page++
 	})
 
 	document.querySelector('[data-command="toggleSort"]').addEventListener('click', (evt) => {
