@@ -30,8 +30,7 @@ export class Model {
 	 */
 	addEffect(fn) {
 		const dataSignal = this.effects[this.effects.length-1]
-		const effect = fn.call(this, dataSignal)
-		this.effects.push(effect)
-		this.view = this.effects[this.effects.length-1]
+		this.view = fn.call(this, dataSignal)
+		this.effects.push(this.view)
 	}
 }
