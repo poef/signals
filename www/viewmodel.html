@@ -41,7 +41,7 @@
 <button data-command="toggleSort">sort</button>
 </main>
 <script class="source" type="module">
-	import {signal, effect} from '../src/signals.mjs'
+	import {signal, effect, batch} from '../src/signals.mjs'
 	import {bind} from '../src/bind.mjs'
 	import {Model} from '../src/model.mjs'
 	
@@ -80,11 +80,21 @@
 		// initialize the paging options
 		this.state.options.page = 0
 		this.state.options.pageSize = 20
+		// make sure that the page number is always valid
+		// by clamping it to the range 0-max
+		// because this effect is defined before the paging
+		// effect, the paging effect can rely on page
+		// always being valid
 		effect(() => {
-			const page = this.state.options.page
-			const pageSize = this.state.options.pageSize
-			const max = Math.floor((this.state.data.length-1) / pageSize)
-			this.state.options.page = Math.max(0, Math.min(max, page))
+			batch(() => {
+				const page = this.state.options.page
+				if (!this.state.options.pageSize) {
+					this.state.options.pageSize = 20
+				}
+				const pageSize = this.state.options.pageSize
+				const max = Math.floor((this.state.data.length-1) / pageSize)
+				this.state.options.page = Math.max(0, Math.min(max, page))
+			})
 		})
 		// then return the effect, which is called
 		// whenever the data of the paging options change

@@ -302,8 +302,11 @@ export function batch(fn) {
 function runBatchedListeners() {
     let copyBatchedListeners = Array.from(batchedListeners)
     batchedListeners = new Set()
+    const currentEffect = computeStack[computeStack.length-1]
     for (let listener of copyBatchedListeners) {
-        listener()
+        if (listener!=currentEffect) {
+            listener()
+        }
     }
 }
 
