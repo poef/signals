@@ -6,7 +6,7 @@
 <form>
 <div>
 	<button data-command="decrease">-</button>
-	<input data-bind="count.value" type="number" value="0">
+	<input data-bind="count" type="number" value="0">
 	<button data-command="increase">+</button>
 </div>
 </form>
@@ -14,14 +14,10 @@
 	import { signal } from '../src/signals.mjs'
 	import { bind } from '../src/bind.mjs'
 
-	let count = {
-		value: 1
-	}
-
 	let root = signal({
-		count
+		count: 1
 	})
-	window.root = root
+
 	bind({
 		container: document.body, 
 		root
@@ -29,13 +25,13 @@
 
 	document.querySelector('[data-command="decrease"]')
 		.addEventListener('click', (evt) =>{
-			root.count.value--
+			root.count--
 			evt.preventDefault()
 		})
 
 	document.querySelector('[data-command="increase"]')
 		.addEventListener('click', (evt) => {
-			root.count.value++
+			root.count++
 			evt.preventDefault()
 		})
 
