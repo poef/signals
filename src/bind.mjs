@@ -54,10 +54,13 @@ export function bind(options)
         }
         const bindings = clone.querySelectorAll('['+options.attribute+']')
         for (let binding of bindings) {
-            if (binding.dataset.bind.substring(0, '#root.'.length)=='#root.') {
-                binding.dataset.bind = binding.dataset.bind.substring('#root.'.length)
+            const bind = binding.dataset.bind
+            if (bind.substring(0, '#root.'.length)=='#root.') {
+                binding.dataset.bind = bind.substring('#root.'.length)
+            } else if (bind=='#value') {
+                binding.dataset.bind = path+'.'+index
             } else {
-                binding.dataset.bind = path+'.'+index+'.'+binding.dataset.bind
+                binding.dataset.bind = path+','+index+'.'+binding.dataset.bind
             }
         }
         clone.children[0].setAttribute(options.attribute+'-key',index)
@@ -88,10 +91,13 @@ export function bind(options)
                         item.remove()
                     } else {
                         // check that all data-bind params start with current json path or a '#', otherwise replaceChild
-                        let bindings = item.querySelectorAll(':scope :not([data-bind-key]) [data-bind]')
-                        let needsReplacement = Array.from(bindings).find(b => b.dataset.bind.substr(0, path.length)!==path)
+                        let bindings = Array.from(item.querySelectorAll(':scope :not([data-bind-key]) [data-bind]'))
+                        if (item.matches('[data-bind]')) {
+                            bindings.unshift(item)
+                        }
+                        let needsReplacement = bindings.find(b => b.dataset.bind.substr(0, path.length)!==path)
                         if (needsReplacement) {
-                            el.replaceChild(item, applyTemplate(path, template, value, lastKey))
+                            el.replaceChild(applyTemplate(path, template, value, lastKey), item)
                         }
                     }
                     lastKey++
@@ -110,6 +116,44 @@ export function bind(options)
                 } else if (length < value.length ) {
                     while (length < value.length) {
                         el.appendChild(applyTemplate(path, template, value, length))
+                        length++
+                    }
+                }
+            } else if (value && typeof value == 'object' && template) {
+                let list    = Object.entries(value)
+                let items   = el.querySelectorAll(':scope > [data-bind-key]')
+                let current = 0
+                for (let item of items) {
+                    if (current>=list.length) {
+                        break
+                    }
+                    let key = list[current][0]
+                    current++
+                    let keypath = path+'.'+key
+                    // check that all data-bind params start with current json path or a '#', otherwise replaceChild
+                    let needsReplacement
+                    if (item.dataset?.bind && item.dataset.bind.substr(0, keypath.length)!=keypath) {
+                        needsReplacement=true
+                    } else {
+                        let bindings = Array.from(item.querySelectorAll(':scope :not([data-bind-key]) [data-bind]'))
+                        needsReplacement = bindings.find(b => b.dataset.bind.substr(0, keypath.length)!==keypath)
+                    }
+                    if (needsReplacement) {
+                        el.replaceChild(applyTemplate(path, template, value, key), item)
+                    }
+                }
+                items  = el.querySelectorAll(':scope > [data-bind-key]')
+                let length = items.length
+                if (length>list.length) {
+                    while (length>list.length) {
+                        let child = el.querySelector(':scope > :nth-child('+(length+1)+')') //FIXME: assumes 1 template element
+                        child?.remove()
+                        length--
+                    }
+                } else if (length < list.length) {
+                    while (length < list.length) {
+                        let key = list[length][0]
+                        el.appendChild(applyTemplate(path, template, value, key))
                         length++
                     }
                 }
