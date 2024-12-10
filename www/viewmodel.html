@@ -57,7 +57,7 @@
 <script class="source" type="module">
 	import {signal, effect, batch} from '../src/signals.mjs'
 	import {bind} from '../src/bind.mjs'
-	import {Model, paging, sortBy} from '../src/model.mjs'
+	import {Model, paging, sortBy, filter, columns} from '../src/model.mjs'
 	
 	// generate a random list of numbers
 	const data = []
@@ -75,27 +75,17 @@
 	// adds a sort effect, this must come before
 	// the paging effect, since the content of each
 	// page depends on the sort order of the entire list
-	numbersModel.addEffect(sortBy)
-	numbersModel.state.options.sortBy = 'value'
+	numbersModel.addEffect(sortBy({ sortBy: 'value'}))
 
 	// adds a paging effect
-	numbersModel.addEffect(paging)
+	numbersModel.addEffect(paging())
 
-	numbersModel.addEffect(function(data) {
-		this.state.options.columns = {
+	numbersModel.addEffect(columns({
+		columns: {
 			id: 'ID',
 			value: 'Value'
 		}
-		return effect(() => {
-			return data.current.map(o => {
-				let o2 = {}
-				for (let key of Object.keys(this.state.options.columns)) {
-					o2[key] = o[key]
-				}
-				return o2
-			})
-		})
-	})
+	}))
 
 	numbersModel.container = document.body
 	// set up databinding to render the numbers list
