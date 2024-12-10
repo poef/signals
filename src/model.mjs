@@ -86,8 +86,9 @@ export function paging(options={}) {
 	return function(data) {
 		// initialize the paging options
 		this.state.options.paging = Object.assign({
-			page: 0,
-			pageSize: 20
+			page: 1,
+			pageSize: 20,
+			max: 1
 		}, options)
 		return effect(() => {
 			return batch(() => {
@@ -95,10 +96,10 @@ export function paging(options={}) {
 				if (!paging.pageSize) {
 					paging.pageSize = 20
 				}
-				const max = Math.floor((this.state.data.length-1) / paging.pageSize)
-				paging.page = Math.max(0, Math.min(max, paging.page))
+				paging.max = Math.ceil(this.state.data.length / paging.pageSize)
+				paging.page = Math.max(1, Math.min(paging.max, paging.page))
 
-				const start = paging.page * paging.pageSize
+				const start = (paging.page-1) * paging.pageSize
 				const end = start + paging.pageSize
 				return data.current.slice(start, end)
 			})

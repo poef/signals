@@ -1,6 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>viewmodel</title>
+<link rel="stylesheet" href="ds.css">
 <style>
 	html,body {
 		height: 100vh;
@@ -29,12 +30,19 @@
 	}
 </style>
 <main>
+
+<nav class="ds-buttonbar ds-align-right">
+	<button data-simply-command="pagePrev" class="ds-button">&lt;</button>
+	<span data-bind="numbers.state.options.paging.page"></span> /
+	<span data-bind="numbers.state.options.paging.max"></span>
+	<button data-simply-command="pageNext" class="ds-button">&gt;</button>
+</nav>
 <h1>Viewmodel</h1>
-<table>
+<table class="ds-datatable ds-datatable-sticky-header ds-datatable-rulers">
 <thead>
 	<tr data-bind="numbers.state.options.columns">
 		<template>
-			<th data-bind="#value"></th>
+			<th data-bind="#value" data-simply-command="toggleSort"></th>
 		</template>
 	</tr>
 </thead>
@@ -48,10 +56,6 @@
 	</template>
 </tbody>
 </table>
-<button data-simply-command="pagePrev">previous</button>
-<span data-bind="numbers.state.options.paging.page"></span>
-<button data-simply-command="pageNext">next</button>
-<button data-simply-command="toggleSort">sort</button>
 </main>
 <script src="https://cdn.jsdelivr.net/gh/simplyedit/simplyview/dist/simply.everything.js"></script>
 <script class="source" type="module">
@@ -78,7 +82,9 @@
 	numbersModel.addEffect(sort({ sortBy: 'value'}))
 
 	// adds a paging effect
-	numbersModel.addEffect(paging())
+	numbersModel.addEffect(paging({
+		pageSize: 25
+	}))
 
 	numbersModel.addEffect(columns({
 		columns: {
@@ -104,11 +110,19 @@
 			this.app.state.options.paging.page++
 		},
 		toggleSort: function(el, value) {
+			const sortBy = el.innerText.trim().toLowerCase()
+			this.app.state.options.sort.sortBy = sortBy
+			el.closest('tr').querySelectorAll('th').forEach(e => {
+				e.classList.remove('ds-datatable-sorted-ascending')
+				e.classList.remove('ds-datatable-sorted-descending')
+			})
 			const dir = this.app.state.options.sort.direction
 			if (dir=='asc') {
 				this.app.state.options.sort.direction = 'desc'
+				el.classList.add('ds-datatable-sorted-descending')
 			} else {
 				this.app.state.options.sort.direction = 'asc'
+				el.classList.add('ds-datatable-sorted-ascending')
 			}
 		}
 	})
