@@ -48,16 +48,16 @@
 	</template>
 </tbody>
 </table>
-<button data-command="pagePrev">previous</button>
+<button data-simply-command="pagePrev">previous</button>
 <span data-bind="numbers.state.options.page"></span>
-<button data-command="pageNext">next</button>
-<button data-command="toggleSort">sort</button>
+<button data-simply-command="pageNext">next</button>
+<button data-simply-command="toggleSort">sort</button>
 </main>
 <script src="https://cdn.jsdelivr.net/gh/simplyedit/simplyview/dist/simply.everything.js"></script>
 <script class="source" type="module">
 	import {signal, effect, batch} from '../src/signals.mjs'
 	import {bind} from '../src/bind.mjs'
-	import {Model, paging} from '../src/model.mjs'
+	import {Model, paging, sortBy} from '../src/model.mjs'
 	
 	// generate a random list of numbers
 	const data = []
@@ -75,20 +75,8 @@
 	// adds a sort effect, this must come before
 	// the paging effect, since the content of each
 	// page depends on the sort order of the entire list
-	numbersModel.addEffect(function(data) {
-		// initialize the sort options, only gets called once
-		this.state.options.sortDirection = 'asc'
-		// then return the effect, which is called when
-		// either the data or the sort options change
-		return effect(() => {
-			console.log('sorting')
-			if (this.state.options.sortDirection=='desc') {
-				return data.current.toSorted((a,b) => b - a)
-			} else {
-				return data.current.toSorted((a,b) => a - b)
-			}
-		})
-	})
+	numbersModel.addEffect(sortBy)
+	numbersModel.state.options.sortBy = 'value'
 
 	// adds a paging effect
 	numbersModel.addEffect(paging)
@@ -109,32 +97,30 @@
 		})
 	})
 
+	numbersModel.container = document.body
 	// set up databinding to render the numbers list
 	bind({
-		container: document.body,
+		container: numbersModel.container,
 		root: {
 			numbers: numbersModel
 		}
 	})
 
-	// tie functions to handle the button clicks
-	document.querySelector('[data-command="pagePrev"]').addEventListener('click', (evt) => {
-		evt.preventDefault()
-		numbersModel.state.options.page--
-	})
-
-	document.querySelector('[data-command="pageNext"]').addEventListener('click', (evt) => {
-		evt.preventDefault()
-		numbersModel.state.options.page++
-	})
-
-	document.querySelector('[data-command="toggleSort"]').addEventListener('click', (evt) => {
-			const dir = numbersModel.state.options.sortDirection
+	simply.command(numbersModel, {
+		pagePrev: function(el, value) {
+			this.app.state.options.page--
+		},
+		pageNext: function(el, value) {
+			this.app.state.options.page++
+		},
+		toggleSort: function(el, value) {
+			const dir = this.app.state.options.sortDirection
 			if (dir=='asc') {
-				numbersModel.state.options.sortDirection = 'desc'
+				this.app.state.options.sortDirection = 'desc'
 			} else {
-				numbersModel.state.options.sortDirection = 'asc'
+				this.app.state.options.sortDirection = 'asc'
 			}
+		}
 	})
 
 	// make the numbersModel available in the console
