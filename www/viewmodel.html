@@ -43,7 +43,7 @@
 <script class="source" type="module">
 	import {signal, effect, batch} from '../src/signals.mjs'
 	import {bind} from '../src/bind.mjs'
-	import {Model} from '../src/model.mjs'
+	import {Model, paging} from '../src/model.mjs'
 	
 	// generate a random list of numbers
 	const data = []
@@ -76,39 +76,7 @@
 	})
 
 	// adds a paging effect
-	numbersModel.addEffect(function(data) {
-		// initialize the paging options
-		this.state.options.page = 0
-		this.state.options.pageSize = 20
-		// make sure that the page number is always valid
-		// by clamping it to the range 0-max
-		// because this effect is defined before the paging
-		// effect, the paging effect can rely on page
-		// always being valid
-		effect(() => {
-			batch(() => {
-				const page = this.state.options.page
-				if (!this.state.options.pageSize) {
-					this.state.options.pageSize = 20
-				}
-				const pageSize = this.state.options.pageSize
-				const max = Math.floor((this.state.data.length-1) / pageSize)
-				this.state.options.page = Math.max(0, Math.min(max, page))
-			})
-		})
-		// then return the effect, which is called
-		// whenever the data of the paging options change
-		// and if sort order changes, then the input data signal
-		// changes, so this is called immediately after
-		return effect(() => {
-			console.log('paging')
-			const page = this.state.options.page
-			const pageSize = this.state.options.pageSize
-			const start = page * pageSize
-			const end = start + pageSize
-			return data.current.slice(start, end)
-		})
-	})
+	numbersModel.addEffect(paging)
 
 	// set up databinding to render the numbers list
 	bind({
