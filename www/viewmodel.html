@@ -30,16 +30,30 @@
 </style>
 <main>
 <h1>Viewmodel</h1>
-<ul data-bind="numbers.view.current">
+<table>
+<thead>
+	<tr data-bind="numbers.state.options.columns">
+		<template>
+			<th data-bind="#value"></th>
+		</template>
+	</tr>
+</thead>
+<tbody data-bind="numbers.view.current">
 	<template>
-		<li data-bind="#value"></li>
+		<tr data-bind="#value">
+			<template>
+				<td data-bind="#value"></td>
+			</template>
+		</tr>
 	</template>
-</ul>
+</tbody>
+</table>
 <button data-command="pagePrev">previous</button>
 <span data-bind="numbers.state.options.page"></span>
 <button data-command="pageNext">next</button>
 <button data-command="toggleSort">sort</button>
 </main>
+<script src="https://cdn.jsdelivr.net/gh/simplyedit/simplyview/dist/simply.everything.js"></script>
 <script class="source" type="module">
 	import {signal, effect, batch} from '../src/signals.mjs'
 	import {bind} from '../src/bind.mjs'
@@ -48,13 +62,14 @@
 	// generate a random list of numbers
 	const data = []
 	for (let i=0; i<110; i++) {
-		data.push(Math.floor(Math.random()*1000))
+		data.push({id:i,value:Math.floor(Math.random()*1000)})
 	}
 
 	// create a new Model from it
 	const numbersModel = new Model({
 		data,
-		options: {}
+		options: {
+		}
 	})
 
 	// adds a sort effect, this must come before
@@ -77,6 +92,22 @@
 
 	// adds a paging effect
 	numbersModel.addEffect(paging)
+
+	numbersModel.addEffect(function(data) {
+		this.state.options.columns = {
+			id: 'ID',
+			value: 'Value'
+		}
+		return effect(() => {
+			return data.current.map(o => {
+				let o2 = {}
+				for (let key of Object.keys(this.state.options.columns)) {
+					o2[key] = o[key]
+				}
+				return o2
+			})
+		})
+	})
 
 	// set up databinding to render the numbers list
 	bind({
