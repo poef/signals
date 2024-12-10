@@ -15,6 +15,9 @@ export class Model {
 	 */
 	constructor(state) {
 		this.state = signal(state)
+		if (!this.state.options) {
+			this.state.options = {}
+		}
 		this.effects = [{current:state.data}]
 		this.view = signal(state.data)
 	}
@@ -35,65 +38,68 @@ export class Model {
 	}
 }
 
-export function sortBy(options) {
+export function sort(options={}) {
 	return function(data) {
 		// initialize the sort options, only gets called once
-		this.state.options.sortDirection = options?.sortDirection || 'asc'
-		this.state.options.sortBy = options?.sortBy || null
-		this.state.options.sortFn = options?.sortFn || ((a,b) => {
-			const sortBy = this.state.options.sortBy
-			const sortDirection = this.state.options.sortDirection
-			const larger = sortDirection == 'asc' ? 1 : -1
-			const smaller = sortDirection == 'asc' ? -1 : 1
-			if (!sortBy) {
-				return 0
-			}
-			if (typeof a?.[sortBy] === 'undefined') {
-				if (typeof b?.[sortBy] === 'undefined') {
+		this.state.options.sort = Object.assign({
+			direction: 'asc',
+			sortBy: null,
+			sortFn: ((a,b) => {
+				const sort = this.state.options.sort
+				const sortBy = sort.sortBy
+				if (!sort.sortBy) {
 					return 0
 				}
-				return larger
-			}
-			if (typeof b?.[sortBy] === 'undefined') {
-				return smaller
-			}
-			if (a[sortBy]<b[sortBy]) {
-				return smaller
-			} else if (a[sortBy]>b[sortBy]) {
-				return larger
-			} else {
-				return 0
-			}
-		})
+				const larger = sort.direction == 'asc' ? 1 : -1
+				const smaller = sort.direction == 'asc' ? -1 : 1
+				if (typeof a?.[sortBy] === 'undefined') {
+					if (typeof b?.[sortBy] === 'undefined') {
+						return 0
+					}
+					return larger
+				}
+				if (typeof b?.[sortBy] === 'undefined') {
+					return smaller
+				}
+				if (a[sortBy]<b[sortBy]) {
+					return smaller
+				} else if (a[sortBy]>b[sortBy]) {
+					return larger
+				} else {
+					return 0
+				}
+			})
+		}, options);
 		// then return the effect, which is called when
 		// either the data or the sort options change
 		return effect(() => {
-			if (this.state.options.sortBy) {
-				return data.current.toSorted(this.state.options.sortFn)
+			const sort = this.state.options.sort
+			if (sort?.sortBy && sort?.direction) {
+				return data.current.toSorted(sort?.sortFn)
 			}
 			return data.current
 		})
 	}
 }
 
-export function paging(options) {
+export function paging(options={}) {
 	return function(data) {
 		// initialize the paging options
-		this.state.options.page = options?.page || 0
-		this.state.options.pageSize = options?.pageSize || 20
+		this.state.options.paging = Object.assign({
+			page: 0,
+			pageSize: 20
+		}, options)
 		return effect(() => {
 			return batch(() => {
-				let page = this.state.options.page
-				if (!this.state.options.pageSize) {
-					this.state.options.pageSize = 20
+				const paging = this.state.options.paging
+				if (!paging.pageSize) {
+					paging.pageSize = 20
 				}
-				let pageSize = this.state.options.pageSize
-				const max = Math.floor((this.state.data.length-1) / pageSize)
-				page = Math.max(0, Math.min(max, page))
-				this.state.options.page = page
+				const max = Math.floor((this.state.data.length-1) / paging.pageSize)
+				paging.page = Math.max(0, Math.min(max, paging.page))
 
-				const start = page * pageSize
-				const end = start + pageSize
+				const start = paging.page * paging.pageSize
+				const end = start + paging.pageSize
 				return data.current.slice(start, end)
 			})
 		})
