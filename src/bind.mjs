@@ -137,8 +137,10 @@ export function bind(options)
                     if (item.dataset?.bind && item.dataset.bind.substr(0, keypath.length)!=keypath) {
                         needsReplacement=true
                     } else {
-                        let bindings = Array.from(item.querySelectorAll(':scope :not([data-bind-key]) [data-bind]'))
-                        needsReplacement = bindings.find(b => b.dataset.bind.substr(0, keypath.length)!==keypath)
+                        let bindings = Array.from(item.querySelectorAll('[data-bind]'))
+                        needsReplacement = bindings.find(b => {
+                            return (b.dataset.bind.substr(0,5)!=='#root' && b.dataset.bind.substr(0, keypath.length)!==keypath)
+                        })
                     }
                     if (needsReplacement) {
                         el.replaceChild(applyTemplate(path, template, value, key), item)
