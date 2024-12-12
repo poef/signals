@@ -1,0 +1,148 @@
+<!doctype html>
+<html>
+<head>
+    <link rel="stylesheet" href="base.css">
+    <style>
+        input.toggle:checked ~ div.view label {
+            color: #d9d9d9;
+            text-decoration: line-through;
+        }
+        li.slip-reordering {
+            box-shadow: 0 2px 10px rgba(0,0,0,0.45);
+            background-color: white;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/slipjs/2.0.0/slip.min.js"></script>
+</head>
+<body>
+    <section class="todoapp">
+        <div>
+            <header class="header">
+                <h1>todos</h1>
+                <form id="form" data-simply-command="addTodo">
+                    <input class="new-todo" type="text" name="newItem" placeholder="What needs to be done?">
+                </form>
+            </header>
+            <section class="main">
+                <ul class="todo-list" data-bind="todo">
+                    <template>
+                        <li>
+                            <input type="checkbox" class="toggle" data-bind="completed" value="true" data-simply-command="toggleCompleted">
+                            <div class="view">
+                                <label data-bind="item">Item</label>
+                                <button class="edit" data-simply-command="editTodo"></button>
+                                <button class="destroy" data-simply-command="delTodo" data-bind="#key"></button>
+                            </div>
+                            <input class="edit" data-bind="item" type="text" data-simply-command="showTodo">
+                        </li>
+                    </template>
+                </ul>
+            </section>
+            <footer class="footer">
+                <span class="todo-count" data-bind="leftToDo.current"></span>
+            </footer>
+        </div>
+    </section>
+    <p class="refer-back">This example is part of <a href="https://simplyedit.io/examples/" target="_blank">simplyedit.io/examples/</a>
+    <script src="https://cdn.jsdelivr.net/gh/simplyedit/simplyview/dist/simply.everything.js"></script>
+    <script type="module">
+        import {signal, effect} from '../../src/signals.mjs'
+        import {bind} from '../../src/bind.mjs'
+
+        window.todoApp = simply.app({
+            commands: {
+                addTodo: function(form, values) {
+                    if (values.newItem.trim()) {
+                        todoApp.view.todo.push({
+                            item : values.newItem.trim(),
+                            completed : 0
+                        });
+                    }
+                    form.newItem.value = '';
+                },
+                delTodo: function(el, value) {
+                    todoApp.view.todo.splice(value, 1)
+                },
+                editTodo: function(el, value) {
+                    var item = el.closest('li');
+                    var input = item.querySelector('input[type="text"]');
+                    
+                    item.classList.add('editing');
+                    input.focus();
+                    
+                    input.addEventListener('blur', function() {
+                        input.removeEventListener('keyup', keyEscape);
+                        todoApp.commands.call('showTodo', input);
+                    }, { once: true });
+                    
+                    var keyEscape = function(evt) {
+                        if (["Escape","Cancel"].indexOf(evt.key)!=-1) {
+                            input.value = item.querySelector('label[data-simply-field="item"]').innerHTML;
+                        }
+                        if (["Escape","Cancel","Enter"].indexOf(evt.key)!=-1) {
+                            todoApp.commands.call('showTodo', input);
+                        }
+                    };
+                    input.addEventListener('keyup', keyEscape);
+                },
+                showTodo: function(el, value) {
+                    el.closest('li').classList.remove('editing');
+                    el.blur();
+                },
+                toggleCompleted: function(el, value) {
+                    let index = el.closest('[data-bind-key]').dataset.bindKey
+                    todoApp.view.todo[index].completed = !  todoApp.view.todo[index].completed
+                }
+            },
+            view: signal((function() {
+                var data = localStorage.getItem('simplyTodo');
+                if (!data) {
+                    data = '[]';
+                }
+                var items = JSON.parse(data) || [];
+                return {
+                    todo: items
+                };
+            })())
+        });
+
+        // calculate how many todo items are left todo
+        // automatically updates if todo items are added/removed/completed
+        todoApp.view.leftToDo = effect(() => {
+            let count = todoApp.view.todo.filter(t => !t.completed).length
+            if (count==0) {
+                return 'All done!'
+            }
+            if (count==1) {
+                return 'Just one thing left'
+            }
+            return count+' things left'
+        })
+
+        // initialize data-bind rendering
+        bind({root:todoApp.view})
+
+        // automatically store changes in localStorage
+        effect(() => {
+            localStorage.setItem('simplyTodo', JSON.stringify(todoApp.view.todo))
+        })
+
+        // 6: drag and drop items to reorder them
+        var todoList = document.querySelector('ul.todo-list');
+
+        todoList.addEventListener('slip:reorder', function(e){
+            //e.target.parentNode.insertBefore(e.target, e.detail.insertBefore);
+            //reorder todoApp.view.todo instead
+        });
+
+        // 7: swipe to remove an item
+        todoList.addEventListener('slip:swipe', function(e) {
+            // e.target.parentNode.removeChild(e.target);
+            // splice todoApp.view.todo instead
+        });
+
+        new Slip(todoList);
+
+    </script>
+</body>
+</html>
