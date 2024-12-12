@@ -91,11 +91,13 @@ export function bind(options)
                         item.remove()
                     } else {
                         // check that all data-bind params start with current json path or a '#', otherwise replaceChild
-                        let bindings = Array.from(item.querySelectorAll(':scope :not([data-bind-key]) [data-bind]'))
+                        let bindings = Array.from(item.querySelectorAll('[data-bind]'))
                         if (item.matches('[data-bind]')) {
                             bindings.unshift(item)
                         }
-                        let needsReplacement = bindings.find(b => b.dataset.bind.substr(0, path.length)!==path)
+                        let needsReplacement = bindings.find(b => {
+                            return (b.dataset.bind.substr(0,5)!=='#root' && b.dataset.bind.substr(0, path.length)!==path)
+                        })
                         if (needsReplacement) {
                             el.replaceChild(applyTemplate(path, template, value, lastKey), item)
                         }
