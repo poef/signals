@@ -60,7 +60,7 @@ export function bind(options)
             } else if (bind=='#value') {
                 binding.dataset.bind = path+'.'+index
             } else {
-                binding.dataset.bind = path+','+index+'.'+binding.dataset.bind
+                binding.dataset.bind = path+'.'+index+'.'+binding.dataset.bind
             }
         }
         clone.children[0].setAttribute(options.attribute+'-key',index)
@@ -70,7 +70,7 @@ export function bind(options)
     const render = (el, root) => {
         let template = el.querySelector('template')
         throttledEffect(() => { // FIXME: throttledEffect runs once too much (extra time at the end)
-			const path = getBindingPath(el)
+            const path = getBindingPath(el)
             const value = getValueByPath(root, path)
             // TODO: add support for object as value, both with/without toString methods
             // should allow to iterate over object entries and render them with a template
