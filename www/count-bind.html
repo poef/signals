@@ -1,16 +1,19 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>data-bind databinding</title>
-<body>
+<link rel="stylesheet" href="ds.css">
+<link rel="stylesheet" href="source.css">
+<main>
 <h1>data-bind databinding</h1>
 <form>
-<div>
-	<button data-command="decrease">-</button>
+<div class="ds-grid-fixed ds-grid-3">
+	<button data-command="decrease" class="ds-button">-</button>
 	<input data-bind="count" type="number" value="0">
-	<button data-command="increase">+</button>
+	<button data-command="increase" class="ds-button">+</button>
 </div>
 </form>
-<script type="module">
+</main>
+<script type="module" class="source">
 	import { signal } from '../src/signals.mjs'
 	import { bind } from '../src/bind.mjs'
 

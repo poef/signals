@@ -1,7 +1,9 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>data-bind list databinding</title>
-<body>
+<link rel="stylesheet" href="ds.css">
+<link rel="stylesheet" href="source.css">
+<main>
 <h1>data-bind list databinding</h1>
 <ul data-bind="list">
 	<template>
@@ -19,7 +21,8 @@
 		<span data-bind="list.2.title">foo</span>
 	</li>
 </ul>
-<script type="module">
+</main>
+<script type="module" class="source">
 	import { signal } from '../src/signals.mjs'
 	import { bind } from '../src/bind.mjs'
 
