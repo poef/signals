@@ -367,6 +367,7 @@ export function throttledEffect(fn, throttleTime) {
     }
 
     let throttled = false
+    let hasChange = true
     // this is the function that is called automatically
     // whenever a signal dependency changes
     const computeEffect = function computeEffect() {
@@ -374,6 +375,7 @@ export function throttledEffect(fn, throttleTime) {
             throw new Error('Cyclical dependency in update() call', { cause: fn})
         }
         if (throttled && throttled>Date.now()) {
+            hasChange = true
             return
         }
         // remove all dependencies (signals) from previous runs 
@@ -387,6 +389,7 @@ export function throttledEffect(fn, throttleTime) {
         try {
             result = fn()
         } finally {
+            hasChange = false
             // stop recording dependencies
             computeStack.pop()
             // stop the recursion prevention
@@ -398,11 +401,13 @@ export function throttledEffect(fn, throttleTime) {
             } else {
                 connectedSignal.current = result
             }
-            if (!throttled) {
-                throttled = Date.now()+throttleTime
-                globalThis.setTimeout(computeEffect, throttleTime)
-            }
         }
+        throttled = Date.now()+throttleTime
+        globalThis.setTimeout(() => {
+            if (hasChange) {
+                computeEffect()
+            }
+        }, throttleTime)
     }
     // run the computEffect immediately upon creation
     computeEffect()
