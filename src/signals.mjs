@@ -52,9 +52,13 @@ const signalHandler = {
     },
     set: (target, property, value, receiver) => {
         value = value?.[source] || value // unwraps signal
-        if (target[property]!==value) {
+        let current = target[property]
+        if (current!==value) {
             target[property] = value
             notifySet(receiver, property)
+        }
+        if (typeof current === 'undefined') {
+            notifySet(receiver, Symbol.iterator)
         }
         return true
     },
@@ -72,7 +76,20 @@ const signalHandler = {
             notifySet(receiver, property, true)
         }
         return true
+    },
+    defineProperty: (target, property, descriptor) => {
+        if (typeof target[property] === 'undefined') {
+            let receiver = signals.get(target) // receiver is not part of the trap arguments, so retrieve it here
+            notifySet(receiver, Symbol.iterator)
+        }
+        return Object.defineProperty(target, property, descriptor)
+    },
+    ownKeys: (target) => {
+        let receiver = signals.get(target) // receiver is not part of the trap arguments, so retrieve it here
+        notifyGet(receiver, Symbol.iterator)
+        return Reflect.ownKeys(target)
     }
+
 }
 
 /**

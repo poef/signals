@@ -139,6 +139,36 @@ describe('basic signals can', () => {
 		expect(bar.current).toBe(2)
 	})
 
+	it('detects array iteration', () => {
+		let foo = signal([1,2,3])
+		let bar = effect(() => {
+			let r = []
+			for (let n of foo) {
+				r.push(n)
+			}
+			return r
+		})
+		expect(bar.current).toEqual([1,2,3])
+		foo.push(4)
+		expect(bar.current).toEqual([1,2,3,4])
+	})
+
+	it('detects object iteration', () => {
+		let foo = signal({
+			bar: 'bar'
+		})
+		let bar = effect(() => {
+			let r = {}
+			for (let k in foo) {
+				r[k] = foo[k]
+			}
+			return r
+		})
+		expect(bar.current).toEqual(foo)
+		foo.baz = 'baz'
+		expect(bar.current).toEqual(foo)
+	})
+
 	it('handle Set functions', () => {
 		let foo = signal(new Set())
 		foo.add(1)
