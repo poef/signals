@@ -112,19 +112,25 @@
 		toggleSort: function(el, value) {
 			const sortBy = el.innerText.trim().toLowerCase()
 			this.app.state.options.sort.sortBy = sortBy
-			el.closest('tr').querySelectorAll('th').forEach(e => {
-				e.classList.remove('ds-datatable-sorted-ascending')
-				e.classList.remove('ds-datatable-sorted-descending')
-			})
 			const dir = this.app.state.options.sort.direction
 			if (dir=='asc') {
 				this.app.state.options.sort.direction = 'desc'
-				el.classList.add('ds-datatable-sorted-descending')
 			} else {
 				this.app.state.options.sort.direction = 'asc'
-				el.classList.add('ds-datatable-sorted-ascending')
 			}
 		}
+	})
+
+	let lastSortColumn = null
+	effect(() => {
+		const sortBy = numbersModel.state.options.sort.sortBy
+		const sortDirection = numbersModel.state.options.sort.direction
+		if (lastSortColumn) {
+			lastSortColumn.classList.remove('ds-datatable-sorted-ascending')
+			lastSortColumn.classList.remove('ds-datatable-sorted-descending')
+		}
+		lastSortColumn = numbersModel.container.querySelector(`th[data-bind-key="${sortBy}"]`)
+		lastSortColumn.classList.add(`ds-datatable-sorted-${sortDirection}ending`)
 	})
 
 	// make the numbersModel available in the console
