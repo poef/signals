@@ -1,4 +1,5 @@
 const source = Symbol('source')
+
 const signalHandler = {
     get: (target, property, receiver) => {
         if (property===source) {
@@ -277,6 +278,22 @@ export function effect(fn) {
     return connectedSignal
 }
 
+
+export function destroy(connectedSignal) {
+    // find the computeEffect associated with this signal
+    // remove all listeners for this effect
+    // remove all references to connectedSignal
+    // if no other references to connectedSignal exist, it will be garbage collected
+}
+
+/**
+ * Inside a batch() call, any changes to signals do not trigger effects
+ * immediately. Instead, immediately after finishing the batch() call,
+ * these effects will be called. Effects that are triggered by multiple
+ * signals are called only once.
+ * @param Function fn batch() calls this function immediately
+ * @result mixed the result of the fn() function call
+ */
 export function batch(fn) {
     batchMode++
     let result
@@ -297,6 +314,7 @@ export function batch(fn) {
             }
         }
     }
+    return result
 }
 
 function runBatchedListeners() {
@@ -310,6 +328,13 @@ function runBatchedListeners() {
     }
 }
 
+/**
+ * A throttledEffect is run immediately once. And then only once
+ * per throttleTime (in ms).
+ * @param Function fn the effect function to run whenever a signal changes
+ * @param int throttleTime in ms
+ * @returns signal with the result of the effect function fn
+ */
 export function throttledEffect(fn, throttleTime) {
     if (effectStack.findIndex(f => fn==f)!==-1) {
         throw new Error('Recursive update() call', {cause:fn})
@@ -367,6 +392,11 @@ export function throttledEffect(fn, throttleTime) {
     return connectedSignal
 }
 
+// refactor: Class clock() with an effect() method
+// keep track of effects per clock, and add clock property to the effect function
+// on notifySet add clock.effects to clock.needsUpdate list
+// on clock.tick() (or clock.time++) run only the clock.needsUpdate effects 
+// (first create a copy and reset clock.needsUpdate, then run effects)
 export function clockEffect(fn, clock) {
     let connectedSignal = signals.get(fn)
     if (!connectedSignal) {
