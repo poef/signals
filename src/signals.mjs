@@ -1,4 +1,5 @@
 const source = Symbol('source')
+const iterate = Symbol('iterate')
 
 const signalHandler = {
     get: (target, property, receiver) => {
@@ -58,7 +59,7 @@ const signalHandler = {
             notifySet(receiver, property)
         }
         if (typeof current === 'undefined') {
-            notifySet(receiver, Symbol.iterator)
+            notifySet(receiver, iterate)
         }
         return true
     },
@@ -80,13 +81,13 @@ const signalHandler = {
     defineProperty: (target, property, descriptor) => {
         if (typeof target[property] === 'undefined') {
             let receiver = signals.get(target) // receiver is not part of the trap arguments, so retrieve it here
-            notifySet(receiver, Symbol.iterator)
+            notifySet(receiver, iterate)
         }
         return Object.defineProperty(target, property, descriptor)
     },
     ownKeys: (target) => {
         let receiver = signals.get(target) // receiver is not part of the trap arguments, so retrieve it here
-        notifyGet(receiver, Symbol.iterator)
+        notifyGet(receiver, iterate)
         return Reflect.ownKeys(target)
     }
 
