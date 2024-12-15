@@ -1,6 +1,5 @@
 const source = Symbol('source')
 const iterate = Symbol('iterate')
-const connectedEffect = Symbol('effect')
 
 const signalHandler = {
     get: (target, property, receiver) => {
@@ -346,7 +345,7 @@ export function destroy(connectedSignal) {
     signals.remove(fn)
 
     effectMap.delete(connectedSignal)
-    
+
     // if no other references to connectedSignal exist, it will be garbage collected
 }
 
