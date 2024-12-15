@@ -1,43 +1,27 @@
 <!doctype html>
 <meta charset="utf-8">
 <title>Minimal databinding</title>
-<link rel="stylesheet" href="ds.css">
 <link rel="stylesheet" href="source.css">
 <main>
-<h1>Minimal databinding</h1>
-<form>
-<div class="ds-grid-fixed ds-grid-3">
-	<button data-command="decrease" class="ds-button">-</button>
-	<input data-bind="count" type="number" value="0">
-	<button data-command="increase" class="ds-button">+</button>
-</div>
-</form>
+	<h1>Minimal databinding</h1>
+	<span id="count"></span>
+	<button id="increase">+</button>
 </main>
 <script type="module" class="source">
 	import { signal, effect } from '../src/signals.mjs'
 
-	let count = signal({
-		value: 0
+	var count = signal({
+		value: 1
 	})
 
-	document.querySelector('[data-command="decrease"]')
-		.addEventListener('click', (evt) =>{
-			count.value--
-			evt.preventDefault()
-		})
+	const counter = document.getElementById("count")
 
-	document.querySelector('[data-command="increase"]')
-		.addEventListener('click', (evt) => {
-			count.value++
-			evt.preventDefault()
-		})
-
-	const counter = document.querySelector('[data-bind="count"]')
 	effect(() => {
-		counter.value = count.value
+		counter.innerHTML = count.value
 	})
 
-	counter.addEventListener('change', (evt) => {
-		count.value = parseInt(counter.value)
-	})
+	document.getElementById("increase").addEventListener(
+		'click',
+		() => count.value++
+	);
 </script>
