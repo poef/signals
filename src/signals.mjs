@@ -139,7 +139,7 @@ function notifySet(self, context={}) {
             const currentEffect = computeStack[computeStack.length-1]
             for (let listener of Array.from(listeners)) {
                 if (listener!=currentEffect && listener?.needsUpdate) {
-                    listener(listener.context)
+                    listener()
                 }
                 clearContext(listener)
             }
@@ -293,7 +293,7 @@ export function effect(fn) {
 
     // this is the function that is called automatically
     // whenever a signal dependency changes
-    const computeEffect = function computeEffect(context) {
+    const computeEffect = function computeEffect() {
         if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
             throw new Error('Cyclical dependency in update() call', { cause: fn})
         }
@@ -306,7 +306,7 @@ export function effect(fn) {
         // call the actual update function
         let result
         try {
-            result = fn(context, computeStack, signalStack)
+            result = fn(computeEffect, computeStack, signalStack)
         } finally {
             // stop recording dependencies
             computeStack.pop()
@@ -322,7 +322,7 @@ export function effect(fn) {
         }
     }
     // run the computEffect immediately upon creation
-    computeEffect({})
+    computeEffect()
     return connectedSignal
 }
 
@@ -371,7 +371,7 @@ function runBatchedListeners() {
     const currentEffect = computeStack[computeStack.length-1]
     for (let listener of copyBatchedListeners) {
         if (listener!=currentEffect && listener?.needsUpdate) {
-            listener(listener.context)
+            listener()
         }
         clearContext(listener)
     }
@@ -419,7 +419,7 @@ export function throttledEffect(fn, throttleTime) {
         // call the actual update function
         let result
         try {
-            result = fn()
+            result = fn(computeEffect, computeStack, signalStack)
         } finally {
             hasChange = false
             // stop recording dependencies
@@ -476,7 +476,7 @@ export function clockEffect(fn, clock) {
                 // call the actual update function
                 let result 
                 try {
-                    result = fn()
+                    result = fn(computeEffect, computeStack)
                 } finally {
                     // stop recording dependencies
                     computeStack.pop()
