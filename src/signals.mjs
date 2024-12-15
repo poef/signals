@@ -17,7 +17,7 @@ const signalHandler = {
                     // by the Proxy, so get/set/delete is all handled
                     let result = value.apply(receiver, args)
                     if (l != target.length) {
-                        notifySet(receiver, 'length')
+                        notifySet(receiver,  makeContext('length', { was: l, now: target.length }) )
                     }
                     return result
                 }
@@ -29,14 +29,14 @@ const signalHandler = {
                     let s = target.size
                     let result = value.apply(target, args)
                     if (s != target.size) {
-                        notifySet(receiver, 'size')
+                        notifySet(receiver, makeContext( 'size', { was: s, now: target.size }) )
                     }
                     // there is no efficient way to see if the function called
                     // has actually changed the Set/Map, but by assuming the
                     // 'setter' functions will change the results of the
                     // 'getter' functions, effects should update correctly
                     if (['set','add','clear','delete'].includes(property)) {
-                        notifySet(receiver, ['entries','forEach','has','keys','values',Symbol.iterator])
+                        notifySet(receiver, makeContext( { entries: {}, forEach: {}, has: {}, keys: {}, values: {}, [Symbol.iterator]: {} } ) )
                     }
                     return result
                 }
@@ -56,10 +56,10 @@ const signalHandler = {
         let current = target[property]
         if (current!==value) {
             target[property] = value
-            notifySet(receiver, property)
+            notifySet(receiver, makeContext(property, { was: current, now: value } ) )
         }
         if (typeof current === 'undefined') {
-            notifySet(receiver, iterate)
+            notifySet(receiver, makeContext(iterate, {}))
         }
         return true
     },
@@ -72,16 +72,17 @@ const signalHandler = {
     },
     deleteProperty: (target, property) => {
         if (typeof target[property] !== 'undefined') {
+            let current = target[property]
             delete target[property]
             let receiver = signals.get(target) // receiver is not part of the trap arguments, so retrieve it here
-            notifySet(receiver, property, true)
+            notifySet(receiver, makeContext(property,{ delete: true, was: current }))
         }
         return true
     },
     defineProperty: (target, property, descriptor) => {
         if (typeof target[property] === 'undefined') {
             let receiver = signals.get(target) // receiver is not part of the trap arguments, so retrieve it here
-            notifySet(receiver, iterate)
+            notifySet(receiver, makeContext(iterate, {}))
         }
         return Object.defineProperty(target, property, descriptor)
     },
@@ -119,15 +120,15 @@ let batchMode = 0
  * Triggers any reactor function that depends on this signal
  * to re-compute its values
  */
-function notifySet(self, properties, isdelete=false) {
-    if (!Array.isArray(properties)) {
-        properties = [properties]
-    }
+function notifySet(self, context={}) {
     let listeners = []
-    properties.forEach(property => {
+    context.forEach((change, property) => {
         let propListeners = getListeners(self, property)
-        if (propListeners?.size) {
-            listeners = listeners.concat(Array.from(propListeners))
+        if (propListeners?.length) {
+            for (let listener of propListeners) {
+                addContext(listener, makeContext(property,change))
+            }
+            listeners = listeners.concat(propListeners)
         }
     })
     listeners = new Set(listeners.filter(Boolean))
@@ -137,12 +138,41 @@ function notifySet(self, properties, isdelete=false) {
         } else {
             const currentEffect = computeStack[computeStack.length-1]
             for (let listener of Array.from(listeners)) {
-                if (listener!=currentEffect) {
-                    listener()
+                if (listener!=currentEffect && listener?.needsUpdate) {
+                    listener(listener.context)
                 }
+                clearContext(listener)
             }
         }
     }
+}
+
+function makeContext(property, change) {
+    let context = new Map()
+    if (typeof property === 'object') {
+        for (let prop in property) {
+            context.set(prop, property[prop])
+        }
+    } else {
+        context.set(property, change)
+    }
+    return context
+}
+
+function addContext(listener, context) {
+    if (!listener.context) {
+        listener.context = context
+    } else {
+        context.forEach((change,property)=> {
+            listener.context.set(property, change) // TODO: merge change if needed
+        })
+    }
+    listener.needsUpdate = true
+}
+
+function clearContext(listener) {
+    delete listener.context
+    delete listener.needsUpdate
 }
 
 /**
@@ -176,7 +206,7 @@ const computeMap = new WeakMap()
  */
 function getListeners(self, property) {
     let listeners = listenersMap.get(self)
-    return listeners?.get(property)
+    return listeners ? Array.from(listeners.get(property) || []) : []
 }
 
 /**
@@ -263,7 +293,7 @@ export function effect(fn) {
 
     // this is the function that is called automatically
     // whenever a signal dependency changes
-    const computeEffect = function computeEffect() {
+    const computeEffect = function computeEffect(context) {
         if (signalStack.findIndex(s => s==connectedSignal)!==-1) {
             throw new Error('Cyclical dependency in update() call', { cause: fn})
         }
@@ -276,7 +306,7 @@ export function effect(fn) {
         // call the actual update function
         let result
         try {
-            result = fn()
+            result = fn(context, computeStack, signalStack)
         } finally {
             // stop recording dependencies
             computeStack.pop()
@@ -292,7 +322,7 @@ export function effect(fn) {
         }
     }
     // run the computEffect immediately upon creation
-    computeEffect()
+    computeEffect({})
     return connectedSignal
 }
 
@@ -340,9 +370,10 @@ function runBatchedListeners() {
     batchedListeners = new Set()
     const currentEffect = computeStack[computeStack.length-1]
     for (let listener of copyBatchedListeners) {
-        if (listener!=currentEffect) {
-            listener()
+        if (listener!=currentEffect && listener?.needsUpdate) {
+            listener(listener.context)
         }
+        clearContext(listener)
     }
 }
 
