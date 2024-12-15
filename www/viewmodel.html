@@ -84,14 +84,16 @@
 			this.app.state.options.paging.page++
 		},
 		toggleSort: function(el, value) {
-			const sortBy = el.innerText.trim().toLowerCase()
-			this.app.state.options.sort.sortBy = sortBy
-			const dir = this.app.state.options.sort.direction
-			if (dir=='asc') {
-				this.app.state.options.sort.direction = 'desc'
-			} else {
-				this.app.state.options.sort.direction = 'asc'
-			}
+			batch(() => {
+				const sortBy = el.innerText.trim().toLowerCase()
+				this.app.state.options.sort.sortBy = sortBy
+				const dir = this.app.state.options.sort.direction
+				if (dir=='asc') {
+					this.app.state.options.sort.direction = 'desc'
+				} else {
+					this.app.state.options.sort.direction = 'asc'
+				}
+			})
 		}
 	})
 
