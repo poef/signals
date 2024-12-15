@@ -1,5 +1,6 @@
 const source = Symbol('source')
 const iterate = Symbol('iterate')
+const connectedEffect = Symbol('effect')
 
 const signalHandler = {
     get: (target, property, receiver) => {
@@ -256,8 +257,7 @@ function clearListeners(compute) {
  * The top most entry is the currently running update function, used
  * to automatically record signals used in an update function.
  */
-const computeStack = []
-
+let computeStack = []
 
 /**
  * Used for cycle detection: effectStack contains all running effect
@@ -266,6 +266,7 @@ const computeStack = []
  */
 const effectStack = []
 
+const effectMap = new WeakMap()
 /**
  * Used for cycle detection: signalStack contains all used signals. 
  * If the same signal appears more than once, there is a cyclical 
@@ -321,6 +322,9 @@ export function effect(fn) {
             }
         }
     }
+    computeEffect.fn = fn
+    effectMap.set(connectedSignal, computeEffect)
+
     // run the computEffect immediately upon creation
     computeEffect()
     return connectedSignal
@@ -329,8 +333,20 @@ export function effect(fn) {
 
 export function destroy(connectedSignal) {
     // find the computeEffect associated with this signal
+    const computeEffect = effectMap.get(connectedSignal)?.deref()
+    if (!computeEffect) {
+        return
+    }
+
     // remove all listeners for this effect
+    clearListeners(computeEffect)
+
     // remove all references to connectedSignal
+    let fn = computeEffect.fn
+    signals.remove(fn)
+
+    effectMap.delete(connectedSignal)
+    
     // if no other references to connectedSignal exist, it will be garbage collected
 }
 
