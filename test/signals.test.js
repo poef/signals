@@ -139,7 +139,7 @@ describe('basic signals can', () => {
 		expect(bar.current).toBe(2)
 	})
 
-	it('detects array iteration', () => {
+	it('detect array iteration', () => {
 		let foo = signal([1,2,3])
 		let bar = effect(() => {
 			let r = []
@@ -153,7 +153,7 @@ describe('basic signals can', () => {
 		expect(bar.current).toEqual([1,2,3,4])
 	})
 
-	it('detects object iteration', () => {
+	it('detect object iteration', () => {
 		let foo = signal({
 			bar: 'bar'
 		})
@@ -343,5 +343,21 @@ describe('effects', () => {
 		setTimeout(() => {
 			done()
 		}, 20)
+	})
+
+	it('are run only once per change', () => {
+		let foo = signal({ value: 1 })
+		let bar = effect(() => {
+			foo.value++
+			return foo.value + ' bar'
+		})
+		let count = 0
+		let baz = effect(() => {
+			count++
+			return foo.value + ' baz ' + count
+		})
+		expect(baz.current).toBe('2 baz 1')
+		foo.value++
+		expect(baz.current).toBe('4 baz 2')
 	})
 })
