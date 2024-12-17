@@ -3,33 +3,57 @@
 <title>viewmodel</title>
 <link rel="stylesheet" href="ds.css">
 <link rel="stylesheet" href="source.css">
+<link rel="stylesheet" href="viewmodel.css">
 <main>
 
 <nav class="ds-buttonbar ds-align-right">
-	<button data-simply-command="pagePrev" class="ds-button">&lt;</button>
+	<button data-simply-command="pagePrev" class="ds-button"><svg class="ds-icon ds-icon-feather">
+			<use xlink:href="feather-sprite.svg#chevron-left"></use>
+		</svg></button>
 	<span data-bind="numbers.state.options.paging.page"></span> /
 	<span data-bind="numbers.state.options.paging.max"></span>
-	<button data-simply-command="pageNext" class="ds-button">&gt;</button>
+	<button data-simply-command="pageNext" class="ds-button"><svg class="ds-icon ds-icon-feather">
+			<use xlink:href="feather-sprite.svg#chevron-right"></use>
+		</svg></button>
 </nav>
 <h1>Viewmodel</h1>
-<table class="ds-datatable ds-datatable-sticky-header ds-datatable-rulers">
-<thead>
-	<tr data-bind="numbers.state.options.columns">
-		<template>
-			<th data-bind="#value" data-simply-command="toggleSort"></th>
-		</template>
-	</tr>
-</thead>
-<tbody data-bind="numbers.view.current">
-	<template>
-		<tr data-bind="#value">
-			<template>
-				<td data-bind="#value"></td>
+<div class="ds-datatable-main">
+	<button class="ds-button ds-button-icon ds-dropdown ds-dropdown ds-datatable-column-select" data-simply-command="dsToggleColumnSelect">
+		<svg class="ds-icon ds-icon-feather">
+			<use xlink:href="feather-sprite.svg#plus"></use>
+		</svg>
+		<nav class="ds-datatable-column-toggle ds-dropdown-nav ds-dropdown-right ds-align-left">
+			<ul class="ds-dropdown-list" data-bind="numbers.state.options.columns">
+				<template>
+					<li class="ds-dropdown-item" data-simply-command="dsToggleColumn">
+						<label>
+							<input type="checkbox" value="1" data-bind="visible">
+							<span data-bind="name"></span>
+						</label>
+					</li>
+				</template>
+			</ul>
+		</nav>
+	</button>
+	<table class="ds-datatable ds-datatable-sticky-header ds-datatable-rulers">
+	<thead>
+		<tr data-bind="numbers.state.options.columns">
+			<template data-bind="visible" data-bind-matches="1">
+				<th data-bind="name" data-simply-command="toggleSort"></th>
 			</template>
 		</tr>
-	</template>
-</tbody>
-</table>
+	</thead>
+	<tbody data-bind="numbers.view.current">
+		<template>
+			<tr data-bind="#value">
+				<template>
+					<td data-bind="#value"></td>
+				</template>
+			</tr>
+		</template>
+	</tbody>
+	</table>
+</div>
 </main>
 <script src="https://cdn.jsdelivr.net/gh/simplyedit/simplyview/dist/simply.everything.js"></script>
 <script class="source" type="module">
@@ -62,8 +86,14 @@
 
 	numbersModel.addEffect(columns({
 		columns: {
-			id: 'ID',
-			value: 'Value'
+			id: {
+				name: 'ID',
+				visible: 1
+			},
+			value: {
+				name: 'Value',
+				visible: 1
+			}
 		}
 	}))
 
@@ -94,6 +124,14 @@
 					this.app.state.options.sort.direction = 'asc'
 				}
 			})
+		},
+		dsToggleColumnSelect: function(el, value) {
+			el.querySelector('.ds-datatable-column-toggle').classList.toggle('ds-selected')
+		},
+		dsToggleColumn: function(el, value) {
+			const key = el.dataset.bindKey
+			const column = this.app.state.options.columns[key]
+			column.visible = column.visible ? 0 : 1
 		}
 	})
 
