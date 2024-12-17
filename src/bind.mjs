@@ -82,10 +82,7 @@ export function bind(options)
         throttledEffect(() => {
             const templates = el.querySelectorAll(':scope > template')
             const path = getBindingPath(el)
-            const value = getValueByPath(root, path) || ''
-            if (window.debugBind) {
-                console.log('rendering',path,value,el,templates)
-            }
+            const value = getValueByPath(root, path)
             if (!el.dataset.transform || !options.transformers[el.dataset.transform]) {
                 return defaultTransformer.call(el, {templates, path, value}, applyTemplate)
             }
@@ -202,7 +199,6 @@ export function defaultTransformer(options, applyTemplate) {
             }
             if (needsReplacement) {
                 let clone = applyTemplate(path, templates, value, key)
-                console.log('replacing',item,clone)
                 this.replaceChild(clone, item)
             }
         }
