@@ -34,7 +34,7 @@ export function bind(options)
         updateBindings(changes)
     }
 
-    var observer = new MutationObserver((changes) => {
+    const observer = new MutationObserver((changes) => {
         handleChanges(changes)
     })
     observer.observe(options.container, {
@@ -83,10 +83,12 @@ export function bind(options)
             const templates = el.querySelectorAll(':scope > template')
             const path = getBindingPath(el)
             const value = getValueByPath(root, path)
+            const transformOptions = Object.assign({}, options, {templates, path, value})
             if (!el.dataset.transform || !options.transformers[el.dataset.transform]) {
-                return defaultTransformer.call(el, {templates, path, value}, applyTemplate)
+                return defaultTransformer.call(el, transformOptions, applyTemplate)
             }
-            return options.transformers[el.dataset.transform].call(el, {templates, path, value}, applyTemplate)
+            return options.transformers[el.dataset.transform]
+                .call(el, transformOptions, applyTemplate)
         }, 100)
     }
     
@@ -94,7 +96,7 @@ export function bind(options)
         return el.getAttribute(options.attribute)
     }
 
-    var bindings = options.container.querySelectorAll('[data-bind]:not(template)')
+    const bindings = options.container.querySelectorAll('['+options.attribute+']:not(template)')
     if (bindings.length) {
         applyBindings(bindings)
     }
@@ -108,7 +110,7 @@ export function defaultTransformer(options, applyTemplate) {
     applyTemplate = applyTemplate.bind(this)
     // TODO: support multiple templates and a way to select the correct one per entry
     if (Array.isArray(value) && templates?.length) {
-        let items = this.querySelectorAll(':scope > [data-bind-key]')
+        let items = this.querySelectorAll(':scope > ['+options.attribute+'-key]')
         // do single merge strategy for now, in future calculate optimal merge strategy from a number
         // now just do a delete if a key <= last key, insert if a key >= last key
         let lastKey = 0
@@ -122,8 +124,8 @@ export function defaultTransformer(options, applyTemplate) {
                 item.remove()
             } else {
                 // check that all data-bind params start with current json path or a '#', otherwise replaceChild
-                let bindings = Array.from(item.querySelectorAll('[data-bind]'))
-                if (item.matches('[data-bind]')) {
+                let bindings = Array.from(item.querySelectorAll(`[${options.attribute}]`))
+                if (item.matches(`[${options.attribute}]`)) {
                     bindings.unshift(item)
                 }
                 let needsReplacement = bindings.find(b => {
@@ -150,7 +152,7 @@ export function defaultTransformer(options, applyTemplate) {
                 break
             }
         }
-        items = this.querySelectorAll(':scope > [data-bind-key]')
+        items = this.querySelectorAll(':scope > ['+options.attribute+'-key]')
         let length = items.length + skipped
         if (length > value.length) {
             while (length > value.length) {
@@ -166,7 +168,7 @@ export function defaultTransformer(options, applyTemplate) {
         }
     } else if (value && typeof value == 'object' && templates?.length) {
         let list    = Object.entries(value)
-        let items   = this.querySelectorAll(':scope > [data-bind-key]')
+        let items   = this.querySelectorAll(':scope > ['+options.attribute+'-key]')
         let current = 0
         let skipped = 0
         for (let item of items) {
@@ -181,7 +183,7 @@ export function defaultTransformer(options, applyTemplate) {
             if (item.dataset?.bind && item.dataset.bind.substr(0, keypath.length)!=keypath) {
                 needsReplacement=true
             } else {
-                let bindings = Array.from(item.querySelectorAll('[data-bind]'))
+                let bindings = Array.from(item.querySelectorAll(`[${options.attribute}]`))
                 needsReplacement = bindings.find(b => {
                     return (b.dataset.bind.substr(0,5)!=='#root' && b.dataset.bind.substr(0, keypath.length)!==keypath)
                 })
@@ -202,7 +204,7 @@ export function defaultTransformer(options, applyTemplate) {
                 this.replaceChild(clone, item)
             }
         }
-        items  = this.querySelectorAll(':scope > [data-bind-key]')
+        items  = this.querySelectorAll(':scope > ['+options.attribute+'-key]')
         let length = items.length + skipped
         if (length>list.length) {
             while (length>list.length) {
