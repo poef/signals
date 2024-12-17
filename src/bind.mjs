@@ -48,8 +48,17 @@ export function bind(options)
         }
     }
 
-    const applyTemplate = (path, template, list, index) => {
+    function applyTemplate(path, templates, list, index) {
+        let template = findTemplate(templates, list[index])
+        if (!template) {
+            let result = new DocumentFragment()
+            result.innerHTML = '<!-- no matching template -->'
+            return result
+        }
         let clone = template.content.cloneNode(true)
+        if (!clone.children?.length) {
+            throw new Error('template must contain a single html element', { cause: template })
+        }
         if (clone.children.length>1) {
             throw new Error('template must contain a single root node', { cause: template })
         }
@@ -65,18 +74,22 @@ export function bind(options)
             }
         }
         clone.children[0].setAttribute(options.attribute+'-key',index)
+        clone.children[0].bindTemplate = template
         return clone
     }
 
     const render = (el, root) => {
         throttledEffect(() => {
-            const template = el.querySelector('template')
+            const templates = el.querySelectorAll(':scope > template')
             const path = getBindingPath(el)
             const value = getValueByPath(root, path) || ''
-            if (!el.dataset.transform || !options.transformers[el.dataset.transform]) {
-                return defaultTransformer.call(el, {template, path, value}, applyTemplate)
+            if (window.debugBind) {
+                console.log('rendering',path,value,el,templates)
             }
-            return options.transformers[el.dataset.transform].call(el, {template, path, value}, applyTemplate)
+            if (!el.dataset.transform || !options.transformers[el.dataset.transform]) {
+                return defaultTransformer.call(el, {templates, path, value}, applyTemplate)
+            }
+            return options.transformers[el.dataset.transform].call(el, {templates, path, value}, applyTemplate)
         }, 100)
     }
     
@@ -84,26 +97,29 @@ export function bind(options)
         return el.getAttribute(options.attribute)
     }
 
-    var bindings = options.container.querySelectorAll('[data-bind]')
+    var bindings = options.container.querySelectorAll('[data-bind]:not(template)')
     if (bindings.length) {
         applyBindings(bindings)
     }
 }
 
 export function defaultTransformer(options, applyTemplate) {
-    const template = options.template
+    const templates = options.templates
+    const templatesCount = templates.length 
     const path = options.path
     const value = options.value
+    applyTemplate = applyTemplate.bind(this)
     // TODO: support multiple templates and a way to select the correct one per entry
-    if (Array.isArray(value) && template) {
+    if (Array.isArray(value) && templates?.length) {
         let items = this.querySelectorAll(':scope > [data-bind-key]')
         // do single merge strategy for now, in future calculate optimal merge strategy from a number
         // now just do a delete if a key <= last key, insert if a key >= last key
         let lastKey = 0
+        let skipped = 0
         for (let item of items) {
             if (item.dataset.bindKey>lastKey) {
                 // insert before
-                this.insertBefore(applyTemplate(path, template, value, lastKey), item)
+                this.insertBefore(applyTemplate(path, templates, value, lastKey), item)
             } else if (item.dataset.bindKey<lastKey) {
                 // remove this
                 item.remove()
@@ -117,8 +133,19 @@ export function defaultTransformer(options, applyTemplate) {
                     return (b.dataset.bind.substr(0,5)!=='#root' 
                         && b.dataset.bind.substr(0, path.length)!==path)
                 })
+                if (!needsReplacement) {
+                    if (item.bindTemplate) {
+                        let newTemplate = findTemplate(templates, value[lastKey])
+                        if (newTemplate != item.bindTemplate){
+                            needsReplacement = true
+                            if (!newTemplate) {
+                                skipped++
+                            }
+                        }
+                    }
+                }
                 if (needsReplacement) {
-                    this.replaceChild(applyTemplate(path, template, value, lastKey), item)
+                    this.replaceChild(applyTemplate(path, templates, value, lastKey), item)
                 }
             }
             lastKey++
@@ -127,23 +154,24 @@ export function defaultTransformer(options, applyTemplate) {
             }
         }
         items = this.querySelectorAll(':scope > [data-bind-key]')
-        let length = items.length
+        let length = items.length + skipped
         if (length > value.length) {
             while (length > value.length) {
-                let child = this.querySelector(':scope > :nth-child('+(length+1)+')') //FIXME: assumes 1 template element
+                let child = this.querySelectorAll(':scope > :not(template)')?.[length-1]
                 child?.remove()
                 length--
             }
         } else if (length < value.length ) {
             while (length < value.length) {
-                this.appendChild(applyTemplate(path, template, value, length))
+                this.appendChild(applyTemplate(path, templates, value, length))
                 length++
             }
         }
-    } else if (value && typeof value == 'object' && template) {
+    } else if (value && typeof value == 'object' && templates?.length) {
         let list    = Object.entries(value)
         let items   = this.querySelectorAll(':scope > [data-bind-key]')
         let current = 0
+        let skipped = 0
         for (let item of items) {
             if (current>=list.length) {
                 break
@@ -160,23 +188,36 @@ export function defaultTransformer(options, applyTemplate) {
                 needsReplacement = bindings.find(b => {
                     return (b.dataset.bind.substr(0,5)!=='#root' && b.dataset.bind.substr(0, keypath.length)!==keypath)
                 })
+                if (!needsReplacement) {
+                    if (item.bindTemplate) {
+                        let newTemplate = findTemplate(templates, value[key])
+                        if (newTemplate != item.bindTemplate){
+                            needsReplacement = true
+                            if (!newTemplate) {
+                                skipped++
+                            }
+                        }
+                    }
+                }
             }
             if (needsReplacement) {
-                this.replaceChild(applyTemplate(path, template, value, key), item)
+                let clone = applyTemplate(path, templates, value, key)
+                console.log('replacing',item,clone)
+                this.replaceChild(clone, item)
             }
         }
         items  = this.querySelectorAll(':scope > [data-bind-key]')
-        let length = items.length
+        let length = items.length + skipped
         if (length>list.length) {
             while (length>list.length) {
-                let child = this.querySelector(':scope > :nth-child('+(length+1)+')') //FIXME: assumes 1 template element
+                let child = this.querySelectorAll(':scope > :not(template)')?.[length-1]
                 child?.remove()
                 length--
             }
         } else if (length < list.length) {
             while (length < list.length) {
                 let key = list[length][0]
-                this.appendChild(applyTemplate(path, template, value, key))
+                this.appendChild(applyTemplate(path, templates, value, key))
                 length++
             }
         }
@@ -245,4 +286,28 @@ function getValueByPath(root, path)
         }
     }
     return curr
+}
+
+function findTemplate(templates, value) {
+    return Array.from(templates).find(t => {
+        if (!t.dataset.bind) {
+            return t
+        }
+        const currentItem = value[t.dataset.bind]
+        const strItem = ''+currentItem
+        if (t.dataset.bindMatches) {
+            let matchTo = t.dataset.bindMatches
+            if (matchTo[0]=='/') {
+                matchTo = new Regexp(matchTo.split('/')[0],matchTo.split('/')[1])
+            }
+            if (strItem.match(matchTo)) {
+                return t
+            }
+        }
+        if (!t.dataset.bindMatches) {
+            if (currentItem) {
+                return t
+            }
+        }
+    })
 }
