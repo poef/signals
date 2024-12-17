@@ -1050,12 +1050,13 @@ dialog[open] ~ .ds-dialog-overlay {
 .ds-dropdown-nav {
     width: var(--ds-dropdown-width);
     background: var(--ds-dropdown-background);
+    box-shadow: var(--ds-shadow-medium);
+    border-radius: var(--ds-box-radius);
     display: none;
     position: absolute;
     left: 0;
-    box-shadow: var(--ds-shadow-medium);
-    border-radius: var(--ds-box-radius);
     z-index: 101;
+    margin: 0;
 }
 .ds-dropdown-nav::before {
     content: "";
@@ -1085,10 +1086,6 @@ dialog[open] ~ .ds-dialog-overlay {
     list-style: none;
     margin: 0;
     padding: 0;
-}
-.ds-dropdown-right {
-    left: auto;
-    right: 0;
 }
 
 .ds-dropdown-right::before {

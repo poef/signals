@@ -1,0 +1,14 @@
+.ds-datatable-main {
+	position: relative;
+}
+.ds-datatable-column-select {
+	position: absolute;
+	right: 0;
+	z-index: 101;
+}
+.ds-datatable-column-toggle {
+	display: none;
+}
+.ds-datatable-column-toggle.ds-selected {
+	display: block;
+}
