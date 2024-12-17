@@ -136,7 +136,9 @@ export function columns(options) {
 			return data.current.map(o => {
 				let o2 = {}
 				for (let key of Object.keys(this.state.options.columns)) {
-					o2[key] = o[key]
+					if (this.state.options.columns[key].visible) {
+						o2[key] = o[key]
+					}
 				}
 				return o2
 			})
