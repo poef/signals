@@ -49,7 +49,7 @@ export function bind(options)
     }
 
     function applyTemplate(path, templates, list, index) {
-        let template = findTemplate(templates, list[index])
+        let template = findTemplate(templates, list[index], options.root)
         if (!template) {
             let result = new DocumentFragment()
             result.innerHTML = '<!-- no matching template -->'
@@ -108,7 +108,6 @@ export function defaultTransformer(options, applyTemplate) {
     const path = options.path
     const value = options.value
     applyTemplate = applyTemplate.bind(this)
-    // TODO: support multiple templates and a way to select the correct one per entry
     if (Array.isArray(value) && templates?.length) {
         let items = this.querySelectorAll(':scope > ['+options.attribute+'-key]')
         // do single merge strategy for now, in future calculate optimal merge strategy from a number
@@ -134,7 +133,7 @@ export function defaultTransformer(options, applyTemplate) {
                 })
                 if (!needsReplacement) {
                     if (item.bindTemplate) {
-                        let newTemplate = findTemplate(templates, value[lastKey])
+                        let newTemplate = findTemplate(templates, value[lastKey], options.root)
                         if (newTemplate != item.bindTemplate){
                             needsReplacement = true
                             if (!newTemplate) {
@@ -189,7 +188,7 @@ export function defaultTransformer(options, applyTemplate) {
                 })
                 if (!needsReplacement) {
                     if (item.bindTemplate) {
-                        let newTemplate = findTemplate(templates, value[key])
+                        let newTemplate = findTemplate(templates, value[key], options.root)
                         if (newTemplate != item.bindTemplate){
                             needsReplacement = true
                             if (!newTemplate) {
@@ -221,16 +220,16 @@ export function defaultTransformer(options, applyTemplate) {
         }
     } else if (this.tagName=='INPUT') {
         if (this.type=='checkbox' || this.type=='radio') {
-            if (this.value == ''+value) {
+            if (matchValue(this.value, value)) {
                 this.checked = true
             } else {
                 this.checked = false
             }
-        } else if (this.value != ''+value) {
+        } else if (!matchValue(this.value, value)) {
             this.value = ''+value
         }
     } else if (this.tagName=='BUTTON') {
-        if (this.value!=''+value) {
+        if (!matchValue(this.value,value)) {
             this.value = ''+value
         }
     } else if (this.tagName=='SELECT') {
@@ -245,23 +244,36 @@ export function defaultTransformer(options, applyTemplate) {
                 }
             }
         } else {
-            let option = this.options.find(o => o.value==value)
+            let option = this.options.find(o => matchValue(o.value,value))
             if (option) {
                 option.selected = true
             }
         }
     } else if (this.tagName=='A') {
-        if (value?.innerHTML && this.innerHTML!=''+value.innerHTML) {
+        if (value?.innerHTML && !matchValue(this.innerHTML, value.innerHTML)) {
             this.innerHTML = ''+value.innerHTML
         }
-        if (value?.href && this.href != ''+value.href) {
+        if (value?.href && !matchValue(this.href,value.href)) {
             this.href = ''+value.href
         }
     } else {
-        if (this.innerHTML != ''+value) {
+        if (!matchValue(this.innerHTML, value)) {
             this.innerHTML = ''+value
         }
     }
+}
+
+function matchValue(a,b) {
+    if (a=='#empty' && !b) {
+        return true
+    }
+    if (b=='#empty' && !a) {
+        return true
+    }
+    if (''+a == ''+b) {
+        return true
+    }
+    return false
 }
 
 function getValueByPath(root, path)
@@ -286,17 +298,26 @@ function getValueByPath(root, path)
     return curr
 }
 
-function findTemplate(templates, value) {
-    return Array.from(templates).find(t => {
+function findTemplate(templates, value, root) {
+    const templateMatches = t => {
         if (!t.dataset.bind) {
             return t
         }
-        const currentItem = value[t.dataset.bind]
+        let currentItem
+        if (t.dataset.bind.substr(0,5)=='#root') {
+            currentItem = getValueByPath(root, t.dataset.bind)
+        } else {
+            currentItem = getValueByPath(value, t.dataset.bind)
+        }
         const strItem = ''+currentItem
         if (t.dataset.bindMatches) {
             let matchTo = t.dataset.bindMatches
             if (matchTo[0]=='/') {
                 matchTo = new Regexp(matchTo.split('/')[0],matchTo.split('/')[1])
+            } else if (matchTo==='#empty' && !currentItem) {
+                return t
+            } else if (matchTo==='#notempty' && currentItem) {
+                return t
             }
             if (strItem.match(matchTo)) {
                 return t
@@ -307,5 +328,15 @@ function findTemplate(templates, value) {
                 return t
             }
         }
-    })
+    };
+    let template = Array.from(templates).find(templateMatches)
+    let rel = template.getAttribute('rel')
+    if (rel) {
+        let replacement = document.querySelector('template#'+rel)
+        if (!replacement) {
+            throw new Error('Could not find template with id '+rel)
+        }
+        template = replacement
+    }
+    return template
 }
