@@ -124,23 +124,24 @@ export function filter(options) {
 	}
 }
 
-export function columns(options) {
-	if (!options?.columns 
-		|| typeof options.columns!=='object'
-		|| Object.keys(options.columns).length===0) {
-		throw new Error('columns requires options.columns to be an object with at least one property')
+export function columns(options={}) {
+	if (!options
+		|| typeof options!=='object'
+		|| Object.keys(options).length===0) {
+		throw new Error('columns requires options to be an object with at least one property')
 	}
 	return function(data) {
-		this.state.options.columns = options.columns
+		this.state.options.columns = options
 		return effect(() => {
-			return data.current.map(o => {
-				let o2 = {}
+			return data.current.map(input => {
+				let result = {}
 				for (let key of Object.keys(this.state.options.columns)) {
-					if (this.state.options.columns[key].visible) {
-						o2[key] = o[key]
+					debugger
+					if (!this.state.options.columns[key].hidden) {
+						result[key] = input[key]
 					}
 				}
-				return o2
+				return result
 			})
 		})
 	}
