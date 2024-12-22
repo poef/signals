@@ -1,55 +1,76 @@
 import { throttledEffect } from './signals.mjs'
 
-export function bind(options)
-{
-    const defaultOptions = {
-        container: document.body,
-        attribute: 'data-bind',
-        transformers: []
-    }
-    if (!options?.root) {
-        throw new Error('bind needs at least options.root set')
-    }
-    options = Object.assign({}, defaultOptions, options)
+class SimplyBind {
+    constructor(options) {
+        const defaultOptions = {
+            container: document.body,
+            attribute: 'data-bind',
+            transformers: []
+        }
+        if (!options?.root) {
+            throw new Error('bind needs at least options.root set')
+        }
+        this.options = Object.assign({}, defaultOptions, options)
 
-    const updateBindings = (changes) => {
-        for (const change of changes) {
-            if (change.type=="childList" && change.addedNodes) {
-                for (let node of change.addedNodes) {
-                    if (node instanceof HTMLElement) {
-                        let bindings = Array.from(node.querySelectorAll(`[${options.attribute}]`))
-                        if (node.matches(`[${options.attribute}]`)) {
-                            bindings.unshift(node)
-                        }
-                        if (bindings.length) {
-                            applyBindings(bindings)
+        const attribute = this.options.attribute
+
+        const render = (el) => {
+            throttledEffect(() => {
+                const context = {
+                    templates: el.querySelectorAll(':scope > template'),
+                    path: this.getBindingPath(el)
+                }
+                context.value = getValueByPath(this.options.root, context.path)
+                if (!el.dataset.transform || !this.options.transformers[el.dataset.transform]) {
+                    return defaultTransformer.call(el, this, context)
+                }
+                return this.options.transformers[el.dataset.transform]
+                    .call(el, this, context)
+            }, 100)
+        }
+
+        const applyBindings = (bindings) => {
+            for (let bindingEl of bindings) {
+                render(bindingEl)
+            }
+        }
+
+        const updateBindings = (changes) => {
+            for (const change of changes) {
+                if (change.type=="childList" && change.addedNodes) {
+                    for (let node of change.addedNodes) {
+                        if (node instanceof HTMLElement) {
+                            let bindings = Array.from(node.querySelectorAll(`[${attribute}]`))
+                            if (node.matches(`[${attribute}]`)) {
+                                bindings.unshift(node)
+                            }
+                            if (bindings.length) {
+                                applyBindings(bindings)
+                            }
                         }
                     }
                 }
             }
         }
-    }
 
-    const handleChanges = (changes) => {
-        updateBindings(changes)
-    }
+        const observer = new MutationObserver((changes) => {
+            updateBindings(changes)
+        })
 
-    const observer = new MutationObserver((changes) => {
-        handleChanges(changes)
-    })
-    observer.observe(options.container, {
-        subtree: true,
-        childList: true
-    })
+        observer.observe(options.container, {
+            subtree: true,
+            childList: true
+        })
 
-    const applyBindings = (bindings) => {
-        for (let bindingEl of bindings) {
-            render(bindingEl, options.root)
+        const bindings = this.options.container.querySelectorAll('['+this.options.attribute+']:not(template)')
+        if (bindings.length) {
+            applyBindings(bindings)
         }
+
     }
 
-    function applyTemplate(path, templates, list, index) {
-        let template = findTemplate(templates, list[index], options.root)
+    applyTemplate(path, templates, list, index) {
+        let template = this.findTemplate(templates, list[index])
         if (!template) {
             let result = new DocumentFragment()
             result.innerHTML = '<!-- no matching template -->'
@@ -62,7 +83,7 @@ export function bind(options)
         if (clone.children.length>1) {
             throw new Error('template must contain a single root node', { cause: template })
         }
-        const bindings = clone.querySelectorAll('['+options.attribute+']')
+        const bindings = clone.querySelectorAll('['+this.options.attribute+']')
         for (let binding of bindings) {
             const bind = binding.dataset.bind
             if (bind.substring(0, '#root.'.length)=='#root.') {
@@ -73,43 +94,118 @@ export function bind(options)
                 binding.dataset.bind = path+'.'+index+'.'+binding.dataset.bind
             }
         }
-        clone.children[0].setAttribute(options.attribute+'-key',index)
+        clone.children[0].setAttribute(this.options.attribute+'-key',index)
         clone.children[0].bindTemplate = template
         return clone
     }
 
-    const render = (el, root) => {
-        throttledEffect(() => {
-            const templates = el.querySelectorAll(':scope > template')
-            const path = getBindingPath(el)
-            const value = getValueByPath(root, path)
-            const transformOptions = Object.assign({}, options, {templates, path, value})
-            if (!el.dataset.transform || !options.transformers[el.dataset.transform]) {
-                return defaultTransformer.call(el, transformOptions, applyTemplate)
-            }
-            return options.transformers[el.dataset.transform]
-                .call(el, transformOptions, applyTemplate)
-        }, 100)
-    }
-    
-    const getBindingPath = (el) => {
-        return el.getAttribute(options.attribute)
+    getBindingPath(el) {
+        return el.getAttribute(this.options.attribute)
     }
 
-    const bindings = options.container.querySelectorAll('['+options.attribute+']:not(template)')
-    if (bindings.length) {
-        applyBindings(bindings)
+    findTemplate(templates, value) {
+        const templateMatches = t => {
+            let path = this.getBindingPath(t)
+            if (!path) {
+                return t
+            }
+            let currentItem
+            if (path.substr(0,6)=='#root.') {
+                currentItem = getValueByPath(this.options.root, path)
+            } else {
+                currentItem = getValueByPath(value, path)
+            }
+            const strItem = ''+currentItem
+            let matches = t.getAttribute(this.options.attribute+'-matches')
+            if (matches) {
+                if (matches==='#empty' && !currentItem) {
+                    return t
+                } else if (matches==='#notempty' && currentItem) {
+                    return t
+                }
+                if (strItem.match(matches)) {
+                    return t
+                }
+            }
+            if (!matches) {
+                if (currentItem) {
+                    return t
+                }
+            }
+        };
+        let template = Array.from(templates).find(templateMatches)
+        let rel = template?.getAttribute('rel')
+        if (rel) {
+            let replacement = document.querySelector('template#'+rel)
+            if (!replacement) {
+                throw new Error('Could not find template with id '+rel)
+            }
+            template = replacement
+        }
+        return template
     }
+
 }
 
-export function defaultTransformer(options, applyTemplate) {
-    const templates = options.templates
+export function bind(options)
+{
+    return new SimplyBind(options)
+}
+
+export function matchValue(a,b) {
+    if (a=='#empty' && !b) {
+        return true
+    }
+    if (b=='#empty' && !a) {
+        return true
+    }
+    if (''+a == ''+b) {
+        return true
+    }
+    return false
+}
+
+export function getValueByPath(root, path)
+{
+    let parts = path.split('.');
+    let curr = root;
+    let part, prevPart;
+    while (parts.length && curr) {
+        part = parts.shift()
+        if (part=='#key') {
+            return prevPart
+        } else if (part=='#value') {
+            return curr
+        } else if (part=='#root') {
+            curr = root
+        } else {
+            part = decodeURIComponent(part)
+            curr = curr[part];
+            prevPart = part
+        }
+    }
+    return curr
+}
+
+
+
+//FIXME: give default transformer access to options and applyTemplate without
+//passing, so define it inside the bind() function
+//then only pass data in and update the dom
+//then add transformers with (data, next) as params, where defaultTransformer is the 
+//last transformer in the chain
+//problem: user defined transformers do not have access to the options and crucially
+//the applyTemplate function
+//replacing the defaultTransformer in a custom bind() implementation is also 
+//impossible/difficult
+export function defaultTransformer(bind, context) {
+    const templates = context.templates
     const templatesCount = templates.length 
-    const path = options.path
-    const value = options.value
-    applyTemplate = applyTemplate.bind(this)
+    const path = context.path
+    const value = context.value
+    const attribute = bind.options.attribute
     if (Array.isArray(value) && templates?.length) {
-        let items = this.querySelectorAll(':scope > ['+options.attribute+'-key]')
+        let items = this.querySelectorAll(':scope > ['+attribute+'-key]')
         // do single merge strategy for now, in future calculate optimal merge strategy from a number
         // now just do a delete if a key <= last key, insert if a key >= last key
         let lastKey = 0
@@ -117,14 +213,14 @@ export function defaultTransformer(options, applyTemplate) {
         for (let item of items) {
             if (item.dataset.bindKey>lastKey) {
                 // insert before
-                this.insertBefore(applyTemplate(path, templates, value, lastKey), item)
+                this.insertBefore(bind.applyTemplate(path, templates, value, lastKey), item)
             } else if (item.dataset.bindKey<lastKey) {
                 // remove this
                 item.remove()
             } else {
                 // check that all data-bind params start with current json path or a '#', otherwise replaceChild
-                let bindings = Array.from(item.querySelectorAll(`[${options.attribute}]`))
-                if (item.matches(`[${options.attribute}]`)) {
+                let bindings = Array.from(item.querySelectorAll(`[${attribute}]`))
+                if (item.matches(`[${attribute}]`)) {
                     bindings.unshift(item)
                 }
                 let needsReplacement = bindings.find(b => {
@@ -133,7 +229,7 @@ export function defaultTransformer(options, applyTemplate) {
                 })
                 if (!needsReplacement) {
                     if (item.bindTemplate) {
-                        let newTemplate = findTemplate(templates, value[lastKey], options.root)
+                        let newTemplate = bind.findTemplate(templates, value[lastKey])
                         if (newTemplate != item.bindTemplate){
                             needsReplacement = true
                             if (!newTemplate) {
@@ -143,7 +239,7 @@ export function defaultTransformer(options, applyTemplate) {
                     }
                 }
                 if (needsReplacement) {
-                    this.replaceChild(applyTemplate(path, templates, value, lastKey), item)
+                    this.replaceChild(bind.applyTemplate(path, templates, value, lastKey), item)
                 }
             }
             lastKey++
@@ -151,7 +247,7 @@ export function defaultTransformer(options, applyTemplate) {
                 break
             }
         }
-        items = this.querySelectorAll(':scope > ['+options.attribute+'-key]')
+        items = this.querySelectorAll(':scope > ['+attribute+'-key]')
         let length = items.length + skipped
         if (length > value.length) {
             while (length > value.length) {
@@ -161,13 +257,13 @@ export function defaultTransformer(options, applyTemplate) {
             }
         } else if (length < value.length ) {
             while (length < value.length) {
-                this.appendChild(applyTemplate(path, templates, value, length))
+                this.appendChild(bind.applyTemplate(path, templates, value, length))
                 length++
             }
         }
     } else if (value && typeof value == 'object' && templates?.length) {
         let list    = Object.entries(value)
-        let items   = this.querySelectorAll(':scope > ['+options.attribute+'-key]')
+        let items   = this.querySelectorAll(':scope > ['+attribute+'-key]')
         let current = 0
         let skipped = 0
         for (let item of items) {
@@ -182,13 +278,13 @@ export function defaultTransformer(options, applyTemplate) {
             if (item.dataset?.bind && item.dataset.bind.substr(0, keypath.length)!=keypath) {
                 needsReplacement=true
             } else {
-                let bindings = Array.from(item.querySelectorAll(`[${options.attribute}]`))
+                let bindings = Array.from(item.querySelectorAll(`[${attribute}]`))
                 needsReplacement = bindings.find(b => {
                     return (b.dataset.bind.substr(0,5)!=='#root' && b.dataset.bind.substr(0, keypath.length)!==keypath)
                 })
                 if (!needsReplacement) {
                     if (item.bindTemplate) {
-                        let newTemplate = findTemplate(templates, value[key], options.root)
+                        let newTemplate = bind.findTemplate(templates, value[key])
                         if (newTemplate != item.bindTemplate){
                             needsReplacement = true
                             if (!newTemplate) {
@@ -199,11 +295,11 @@ export function defaultTransformer(options, applyTemplate) {
                 }
             }
             if (needsReplacement) {
-                let clone = applyTemplate(path, templates, value, key)
+                let clone = bind.applyTemplate(path, templates, value, key)
                 this.replaceChild(clone, item)
             }
         }
-        items  = this.querySelectorAll(':scope > ['+options.attribute+'-key]')
+        items  = this.querySelectorAll(':scope > ['+attribute+'-key]')
         let length = items.length + skipped
         if (length>list.length) {
             while (length>list.length) {
@@ -214,7 +310,7 @@ export function defaultTransformer(options, applyTemplate) {
         } else if (length < list.length) {
             while (length < list.length) {
                 let key = list[length][0]
-                this.appendChild(applyTemplate(path, templates, value, key))
+                this.appendChild(bind.applyTemplate(path, templates, value, key))
                 length++
             }
         }
@@ -263,80 +359,3 @@ export function defaultTransformer(options, applyTemplate) {
     }
 }
 
-function matchValue(a,b) {
-    if (a=='#empty' && !b) {
-        return true
-    }
-    if (b=='#empty' && !a) {
-        return true
-    }
-    if (''+a == ''+b) {
-        return true
-    }
-    return false
-}
-
-function getValueByPath(root, path)
-{
-    let parts = path.split('.');
-    let curr = root;
-    let part, prevPart;
-    while (parts.length && curr) {
-        part = parts.shift()
-        part = decodeURIComponent(part)
-        if (part=='#key') {
-            return prevPart
-        } else if (part=='#value') {
-            return curr
-        } else if (part=='#root') {
-            curr = root
-        } else {
-            curr = curr[part];
-            prevPart = part
-        }
-    }
-    return curr
-}
-
-function findTemplate(templates, value, root) {
-    const templateMatches = t => {
-        if (!t.dataset.bind) {
-            return t
-        }
-        let currentItem
-        if (t.dataset.bind.substr(0,5)=='#root') {
-            currentItem = getValueByPath(root, t.dataset.bind)
-        } else {
-            currentItem = getValueByPath(value, t.dataset.bind)
-        }
-        const strItem = ''+currentItem
-        if (t.dataset.bindMatches) {
-            let matchTo = t.dataset.bindMatches
-            if (matchTo[0]=='/') {
-                matchTo = new Regexp(matchTo.split('/')[0],matchTo.split('/')[1])
-            } else if (matchTo==='#empty' && !currentItem) {
-                return t
-            } else if (matchTo==='#notempty' && currentItem) {
-                return t
-            }
-            if (strItem.match(matchTo)) {
-                return t
-            }
-        }
-        if (!t.dataset.bindMatches) {
-            if (currentItem) {
-                return t
-            }
-        }
-    };
-    let template = Array.from(templates).find(templateMatches)
-    let rel = template.getAttribute('rel')
-    if (rel) {
-        let replacement = document.querySelector('template#'+rel)
-        if (!replacement) {
-            throw new Error('Could not find template with id '+rel)
-        }
-        template = replacement
-    }
-    return template
-}
