@@ -4,6 +4,11 @@
 <link rel="stylesheet" href="ds.css">
 <link rel="stylesheet" href="source.css">
 <link rel="stylesheet" href="viewmodel.css">
+<script type="module">
+  if (!("anchorName" in document.documentElement.style)) {
+    import("https://unpkg.com/@oddbird/css-anchor-positioning");
+  }
+</script>
 <main>
 
 <nav class="ds-buttonbar ds-align-right">
@@ -18,23 +23,23 @@
 </nav>
 <h1>Viewmodel</h1>
 <div class="ds-datatable-main">
-	<button class="ds-button ds-button-icon ds-dropdown ds-dropdown ds-datatable-column-select" data-simply-command="dsToggleColumnSelect">
+	<button class="ds-button ds-button-icon ds-dropdown ds-dropdown ds-datatable-column-select" popovertarget="menu" popovertargetaction="toggle">
 		<svg class="ds-icon ds-icon-feather">
 			<use xlink:href="feather-sprite.svg#plus"></use>
 		</svg>
-		<nav class="ds-datatable-column-toggle ds-dropdown-nav ds-dropdown-right ds-align-left">
-			<ul class="ds-dropdown-list" data-bind="numbers.state.options.columns">
-				<template>
-					<li class="ds-dropdown-item" data-simply-command="dsToggleColumn">
-						<label>
-							<input type="checkbox" value="#empty" data-bind="hidden">
-							<span data-bind="name"></span>
-						</label>
-					</li>
-				</template>
-			</ul>
-		</nav>
 	</button>
+	<nav class="ds-datatable-column-toggle ds-dropdown-nav ds-dropdown-right ds-align-left" popover id="menu">
+		<ul class="ds-dropdown-list" data-bind="numbers.state.options.columns">
+			<template>
+				<li class="ds-dropdown-item" data-simply-command="dsToggleColumn">
+					<label>
+						<input type="checkbox" value="#empty" data-bind="hidden">
+						<span data-bind="name"></span>
+					</label>
+				</li>
+			</template>
+		</ul>
+	</nav>
 	<table class="ds-datatable ds-datatable-sticky-header ds-datatable-rulers">
 	<thead>
 		<tr data-bind="numbers.state.options.columns">

@@ -6,9 +6,6 @@
 	right: 0;
 	z-index: 101;
 }
-.ds-datatable-column-toggle {
-	display: none;
-}
-.ds-datatable-column-toggle.ds-selected {
-	display: block;
+.ds-dropdown-nav {
+	border: 0;
 }

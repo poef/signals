@@ -1038,6 +1038,7 @@ dialog[open] ~ .ds-dialog-overlay {
     box-shadow: none;
     display: inline-block; 
     position: relative;
+    anchor-name: --ds-dropdown-anchor;
 }
 .ds-dropdown-icon {
     padding: 0 0.25em;
@@ -1052,11 +1053,23 @@ dialog[open] ~ .ds-dialog-overlay {
     background: var(--ds-dropdown-background);
     box-shadow: var(--ds-shadow-medium);
     border-radius: var(--ds-box-radius);
-    display: none;
-    position: absolute;
-    left: 0;
-    z-index: 101;
     margin: 0;
+    position-anchor: --ds-dropdown-anchor;
+    top: anchor(--ds-dropdown-anchor bottom);
+    left: anchor(--ds-dropdown-anchor left);
+    xdisplay: none;
+    xposition: absolute;
+    xleft: 0;
+    xz-index: 101;
+}
+.ds-dropdown-up {
+    xbottom: 1.5em
+    top: auto;
+    bottom: anchor(--ds-dropdown-anchor top);
+}
+.ds-dropdown-right {
+    left: auto;
+    right: anchor(--ds-dropdown-anchor right);
 }
 .ds-dropdown-nav::before {
     content: "";
@@ -1071,31 +1084,11 @@ dialog[open] ~ .ds-dialog-overlay {
     filter: drop-shadow(-1px -1px 2px #DDD);
     clip-path: polygon(-2px 0.6rem, -2px -2px, 0.6rem -2px);
 }
-.ds-dropdown-state {
-    display: none;  
-}
-.ds-dropdown-state:checked ~ .ds-dropdown-nav {
-    display: block;
-}
-.ds-dropdown-list {
-    list-style: none;
-    margin: 0;
-    padding: calc(0.25 * var(--ds-spacing)) calc(0.5 * var(--ds-spacing));
-}
-.ds-dropdown-item {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
 
 .ds-dropdown-right::before {
     left: auto;
     right: 0.5rem;
     top: -0.15rem;
-}
-
-.ds-dropdown-up {
-    bottom: 1.5em
 }
 .ds-dropdown-nav.ds-dropdown-up::before {
     transform: rotate(-135deg);
@@ -1110,6 +1103,26 @@ dialog[open] ~ .ds-dialog-overlay {
 .ds-dropdown-nav.ds-dropdown-center::before {
     left: calc(50% - 0.25rem);
 }
+
+
+
+.ds-dropdown-state {
+    display: none;  
+}
+.ds-dropdown-state:checked ~ .ds-dropdown-nav {
+    xdisplay: block;
+}
+.ds-dropdown-list {
+    list-style: none;
+    margin: 0;
+    padding: calc(0.25 * var(--ds-spacing)) calc(0.5 * var(--ds-spacing));
+}
+.ds-dropdown-item {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
 
 
 /* Components: Search */
