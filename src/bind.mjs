@@ -5,7 +5,8 @@ class SimplyBind {
         const defaultOptions = {
             container: document.body,
             attribute: 'data-bind',
-            transformers: []
+            transformers: [],
+            defaultTransformers: [defaultTransformer]
         }
         if (!options?.root) {
             throw new Error('bind needs at least options.root set')
@@ -21,12 +22,31 @@ class SimplyBind {
                     path: this.getBindingPath(el)
                 }
                 context.value = getValueByPath(this.options.root, context.path)
-                if (!el.dataset.transform || !this.options.transformers[el.dataset.transform]) {
-                    return defaultTransformer.call(el, this, context)
-                }
-                return this.options.transformers[el.dataset.transform]
-                    .call(el, this, context)
+                context.element = el
+                runTransformers(context)
             }, 100)
+        }
+
+        const runTransformers = (context) => {
+            let transformers = this.options.defaultTransformers || []
+            if (context.element.dataset.transform) {
+                context.element.dataset.transform.split(' ').filter(Boolean).forEach(t => {
+                    if (this.options.transformers[t]) {
+                        transformers.push(this.options.transformers[t])
+                    } else {
+                        console.warn('No transformer with name '+t+' configured', {cause:context.element})
+                    }
+                })
+            }
+            let next
+            for (let transformer of transformers) {
+                next = ((next, transformer) => {
+                    return (context) => {
+                        return transformer.call(this, context, next)
+                    }
+                })(next, transformer)
+            }
+            return next(context)
         }
 
         const applyBindings = (bindings) => {
@@ -84,17 +104,18 @@ class SimplyBind {
             throw new Error('template must contain a single root node', { cause: template })
         }
         const bindings = clone.querySelectorAll('['+this.options.attribute+']')
+        const attribute = this.options.attribute
         for (let binding of bindings) {
-            const bind = binding.dataset.bind
+            const bind = binding.getAttribute(attribute)
             if (bind.substring(0, '#root.'.length)=='#root.') {
-                binding.dataset.bind = bind.substring('#root.'.length)
+                binding.setAttribute(attribute, bind.substring('#root.'.length))
             } else if (bind=='#value') {
-                binding.dataset.bind = path+'.'+index
+                binding.setAttribute(attribute, path+'.'+index)
             } else {
-                binding.dataset.bind = path+'.'+index+'.'+binding.dataset.bind
+                binding.setAttribute(attribute, path+'.'+index+'.'+bind)
             }
         }
-        clone.children[0].setAttribute(this.options.attribute+'-key',index)
+        clone.children[0].setAttribute(attribute+'-key',index)
         clone.children[0].bindTemplate = template
         return clone
     }
@@ -198,23 +219,25 @@ export function getValueByPath(root, path)
 //the applyTemplate function
 //replacing the defaultTransformer in a custom bind() implementation is also 
 //impossible/difficult
-export function defaultTransformer(bind, context) {
+export function defaultTransformer(context) {
+    const el = context.element
     const templates = context.templates
     const templatesCount = templates.length 
     const path = context.path
     const value = context.value
-    const attribute = bind.options.attribute
+    const attribute = this.options.attribute
     if (Array.isArray(value) && templates?.length) {
-        let items = this.querySelectorAll(':scope > ['+attribute+'-key]')
+        let items = el.querySelectorAll(':scope > ['+attribute+'-key]')
         // do single merge strategy for now, in future calculate optimal merge strategy from a number
         // now just do a delete if a key <= last key, insert if a key >= last key
         let lastKey = 0
         let skipped = 0
         for (let item of items) {
-            if (item.dataset.bindKey>lastKey) {
+            let currentKey = parseInt(item.getAttribute(attribute+'-key'))
+            if (currentKey>lastKey) {
                 // insert before
-                this.insertBefore(bind.applyTemplate(path, templates, value, lastKey), item)
-            } else if (item.dataset.bindKey<lastKey) {
+                el.insertBefore(this.applyTemplate(path, templates, value, lastKey), item)
+            } else if (currentKey<lastKey) {
                 // remove this
                 item.remove()
             } else {
@@ -224,12 +247,13 @@ export function defaultTransformer(bind, context) {
                     bindings.unshift(item)
                 }
                 let needsReplacement = bindings.find(b => {
-                    return (b.dataset.bind.substr(0,5)!=='#root' 
-                        && b.dataset.bind.substr(0, path.length)!==path)
+                    let databind = b.getAttribute(attribute)
+                    return (databind.substr(0,5)!=='#root' 
+                        && databind.substr(0, path.length)!==path)
                 })
                 if (!needsReplacement) {
                     if (item.bindTemplate) {
-                        let newTemplate = bind.findTemplate(templates, value[lastKey])
+                        let newTemplate = this.findTemplate(templates, value[lastKey])
                         if (newTemplate != item.bindTemplate){
                             needsReplacement = true
                             if (!newTemplate) {
@@ -239,7 +263,7 @@ export function defaultTransformer(bind, context) {
                     }
                 }
                 if (needsReplacement) {
-                    this.replaceChild(bind.applyTemplate(path, templates, value, lastKey), item)
+                    el.replaceChild(this.applyTemplate(path, templates, value, lastKey), item)
                 }
             }
             lastKey++
@@ -247,23 +271,23 @@ export function defaultTransformer(bind, context) {
                 break
             }
         }
-        items = this.querySelectorAll(':scope > ['+attribute+'-key]')
+        items = el.querySelectorAll(':scope > ['+attribute+'-key]')
         let length = items.length + skipped
         if (length > value.length) {
             while (length > value.length) {
-                let child = this.querySelectorAll(':scope > :not(template)')?.[length-1]
+                let child = el.querySelectorAll(':scope > :not(template)')?.[length-1]
                 child?.remove()
                 length--
             }
         } else if (length < value.length ) {
             while (length < value.length) {
-                this.appendChild(bind.applyTemplate(path, templates, value, length))
+                el.appendChild(this.applyTemplate(path, templates, value, length))
                 length++
             }
         }
     } else if (value && typeof value == 'object' && templates?.length) {
         let list    = Object.entries(value)
-        let items   = this.querySelectorAll(':scope > ['+attribute+'-key]')
+        let items   = el.querySelectorAll(':scope > ['+attribute+'-key]')
         let current = 0
         let skipped = 0
         for (let item of items) {
@@ -275,16 +299,18 @@ export function defaultTransformer(bind, context) {
             let keypath = path+'.'+key
             // check that all data-bind params start with current json path or a '#', otherwise replaceChild
             let needsReplacement
-            if (item.dataset?.bind && item.dataset.bind.substr(0, keypath.length)!=keypath) {
+            const databind = item.getAttribute(attribute)
+            if (databind && databind.substr(0, keypath.length)!=keypath) {
                 needsReplacement=true
             } else {
                 let bindings = Array.from(item.querySelectorAll(`[${attribute}]`))
                 needsReplacement = bindings.find(b => {
-                    return (b.dataset.bind.substr(0,5)!=='#root' && b.dataset.bind.substr(0, keypath.length)!==keypath)
+                    const db = b.getAttribute(attribute)
+                    return (db.substr(0,5)!=='#root' && db.substr(0, keypath.length)!==keypath)
                 })
                 if (!needsReplacement) {
                     if (item.bindTemplate) {
-                        let newTemplate = bind.findTemplate(templates, value[key])
+                        let newTemplate = this.findTemplate(templates, value[key])
                         if (newTemplate != item.bindTemplate){
                             needsReplacement = true
                             if (!newTemplate) {
@@ -295,43 +321,43 @@ export function defaultTransformer(bind, context) {
                 }
             }
             if (needsReplacement) {
-                let clone = bind.applyTemplate(path, templates, value, key)
-                this.replaceChild(clone, item)
+                let clone = this.applyTemplate(path, templates, value, key)
+                el.replaceChild(clone, item)
             }
         }
-        items  = this.querySelectorAll(':scope > ['+attribute+'-key]')
+        items  = el.querySelectorAll(':scope > ['+attribute+'-key]')
         let length = items.length + skipped
         if (length>list.length) {
             while (length>list.length) {
-                let child = this.querySelectorAll(':scope > :not(template)')?.[length-1]
+                let child = el.querySelectorAll(':scope > :not(template)')?.[length-1]
                 child?.remove()
                 length--
             }
         } else if (length < list.length) {
             while (length < list.length) {
                 let key = list[length][0]
-                this.appendChild(bind.applyTemplate(path, templates, value, key))
+                el.appendChild(this.applyTemplate(path, templates, value, key))
                 length++
             }
         }
-    } else if (this.tagName=='INPUT') {
-        if (this.type=='checkbox' || this.type=='radio') {
-            if (matchValue(this.value, value)) {
-                this.checked = true
+    } else if (el.tagName=='INPUT') {
+        if (el.type=='checkbox' || el.type=='radio') {
+            if (matchValue(el.value, value)) {
+                el.checked = true
             } else {
-                this.checked = false
+                el.checked = false
             }
-        } else if (!matchValue(this.value, value)) {
-            this.value = ''+value
+        } else if (!matchValue(el.value, value)) {
+            el.value = ''+value
         }
-    } else if (this.tagName=='BUTTON') {
-        if (!matchValue(this.value,value)) {
-            this.value = ''+value
+    } else if (el.tagName=='BUTTON') {
+        if (!matchValue(el.value,value)) {
+            el.value = ''+value
         }
-    } else if (this.tagName=='SELECT') {
-        if (this.multiple) {
+    } else if (el.tagName=='SELECT') {
+        if (el.multiple) {
             if (Array.isArray(value)) {
-                for (let option of this.options) {
+                for (let option of el.options) {
                     if (value.indexOf(option.value)===false) {
                         option.selected = false
                     } else {
@@ -340,21 +366,21 @@ export function defaultTransformer(bind, context) {
                 }
             }
         } else {
-            let option = this.options.find(o => matchValue(o.value,value))
+            let option = el.options.find(o => matchValue(o.value,value))
             if (option) {
                 option.selected = true
             }
         }
-    } else if (this.tagName=='A') {
-        if (value?.innerHTML && !matchValue(this.innerHTML, value.innerHTML)) {
-            this.innerHTML = ''+value.innerHTML
+    } else if (el.tagName=='A') {
+        if (value?.innerHTML && !matchValue(el.innerHTML, value.innerHTML)) {
+            el.innerHTML = ''+value.innerHTML
         }
-        if (value?.href && !matchValue(this.href,value.href)) {
-            this.href = ''+value.href
+        if (value?.href && !matchValue(el.href,value.href)) {
+            el.href = ''+value.href
         }
     } else {
-        if (!matchValue(this.innerHTML, value)) {
-            this.innerHTML = ''+value
+        if (!matchValue(el.innerHTML, value)) {
+            el.innerHTML = ''+value
         }
     }
 }
