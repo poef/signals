@@ -1057,15 +1057,14 @@ dialog[open] ~ .ds-dialog-overlay {
     position-anchor: --ds-dropdown-anchor;
     top: anchor(--ds-dropdown-anchor bottom);
     left: anchor(--ds-dropdown-anchor left);
-    xdisplay: none;
-    xposition: absolute;
-    xleft: 0;
-    xz-index: 101;
+    overflow: visible;
+    margin-top: 0.5rem;
 }
 .ds-dropdown-up {
-    xbottom: 1.5em
     top: auto;
     bottom: anchor(--ds-dropdown-anchor top);
+    margin-top: unset;
+    margin-bottom: 0.5rem;
 }
 .ds-dropdown-right {
     left: auto;
@@ -1087,7 +1086,7 @@ dialog[open] ~ .ds-dialog-overlay {
 
 .ds-dropdown-right::before {
     left: auto;
-    right: 0.5rem;
+    right: 0.25rem;
     top: -0.15rem;
 }
 .ds-dropdown-nav.ds-dropdown-up::before {
