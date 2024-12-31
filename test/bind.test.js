@@ -24,7 +24,7 @@ describe('bind can', () => {
       ]
     })
     document.body.innerHTML = source
-    bind({
+    const databind = bind({
       container: document.body,
       root: data
     })
@@ -40,7 +40,43 @@ describe('bind can', () => {
         done()
       } catch(error) {
         done(error)
+      } finally {
+        databind.destroy()
       }
     }, 10)
   })
-});
+  it('render matching templates', (done) => {
+    const data = signal({
+      foo: 1,
+      bar: 'bar'
+    })
+    const source = `<div data-bind="foo">
+        <template data-bind-match="1">
+          <div data-bind="bar"></div>
+        </template>
+      </div>`
+    document.body.innerHTML = source
+    const databind = bind({
+      container: document.body,
+      root: data
+    })
+    const rendered = `<div data-bind=\"foo\">
+        <template data-bind-match=\"1\">
+          <div data-bind=\"bar\"></div>
+        </template>
+      
+          <div data-bind=\"#root.bar\">bar</div>
+        </div>`
+    setTimeout(() => {
+      try {
+        expect(document.body.innerHTML.trim()).toBe(rendered)
+        done()
+      } catch(error) {
+        done(error)
+      } finally {
+        databind.destroy()
+      }
+    }, 100)
+  })
+})
+
