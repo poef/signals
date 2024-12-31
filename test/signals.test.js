@@ -297,12 +297,18 @@ describe('effects', () => {
 		}
 		setTimeout(() => {
 			// throttled effect called only once in each 10ms
-			expect(bar.current).toBe('11:1')
-			setTimeout(() => {
-				// make sure that throttle end timeout is only called if foo.value has changed in the mean time
-				expect(bar.current).toBe('11:1') 
-				done()
-			}, 20)
+			try {
+				expect(bar.current).toBe('11:1')
+			} finally {
+				setTimeout(() => {
+					// make sure that throttle end timeout is only called if foo.value has changed in the mean time
+					try {
+						expect(bar.current).toBe('11:1')
+					} finally {
+						done()
+					}
+				}, 20)
+			}
 		}, 20)
 	})
 
